@@ -22,7 +22,7 @@ ENDPOINTS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter",
              "https://overpass.kumi.systems/api/interpreter",
              "https://overpass-api.de/api/interpreter"]
 
-def post(query, rounds=8):
+def post(query, rounds=40):
     for rnd in range(rounds):
         for ep in ENDPOINTS:
             try:
@@ -36,7 +36,8 @@ def post(query, rounds=8):
             except Exception:
                 pass
             time.sleep(3)
-        wait = min(90, 10 * (rnd + 1)) + random.random() * 10
+        # a busy mirror is busy for seconds, not minutes: retry often
+        wait = min(30, 5 * (rnd + 1)) + random.random() * 5
         print(f"   all mirrors busy, backing off {wait:.0f}s", flush=True)
         time.sleep(wait)
     return None
