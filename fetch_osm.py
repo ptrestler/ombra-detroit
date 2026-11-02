@@ -5,7 +5,7 @@ rate-limit hard and some serve empty results. Everything here is cached on disk
 and safe to re-run - it only fetches what is missing. A cold fetch of the street
 and building tiles took about an hour; the cache is worth keeping.
 """
-import json, os, random, time, urllib.parse, urllib.request
+import json, os, random, socket, time, urllib.error, urllib.parse, urllib.request
 from paths import osm
 
 from city import S, W, N, E, SLUG                   # the mapped area
@@ -22,17 +22,33 @@ ENDPOINTS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter",
              "https://overpass.kumi.systems/api/interpreter",
              "https://overpass-api.de/api/interpreter"]
 
+# A mirror that hangs (no bytes at all) is not busy, it is unreachable from
+# here; one that answers with an HTTP error or resets is busy and worth
+# retrying. Mirrors that hang twice, and have never answered, are dropped for
+# the rest of the run, or a round could wait out every timeout in turn. One
+# that has answered is only slow, and is never dropped.
+HUNG = {}; OK = set()
+
 def post(query, rounds=40):
     for rnd in range(rounds):
         for ep in ENDPOINTS:
+            if HUNG.get(ep, 0) >= 2: continue
             try:
                 data = urllib.parse.urlencode({"data": query}).encode()
                 req = urllib.request.Request(ep, data=data,
                                              headers={"User-Agent": f"{SLUG}/1.0"})
-                with urllib.request.urlopen(req, timeout=300) as f:
+                with urllib.request.urlopen(req, timeout=150) as f:
                     j = json.loads(f.read())
+                OK.add(ep)
                 if j.get("elements") is not None:
                     return j
+            except (TimeoutError, socket.timeout):
+                if ep not in OK: HUNG[ep] = HUNG.get(ep, 0) + 1
+                if HUNG.get(ep, 0) == 2: print(f"   {ep.split('/')[2]} hangs; skipping it this run", flush=True)
+            except urllib.error.URLError as e:
+                if isinstance(e.reason, (TimeoutError, socket.timeout)) and ep not in OK:
+                    HUNG[ep] = HUNG.get(ep, 0) + 1
+                if isinstance(e, urllib.error.HTTPError): OK.add(ep)   # it answered
             except Exception:
                 pass
             time.sleep(3)
