@@ -86,10 +86,10 @@ async function run(engine, label, breakStreams, which) {
       const o = window.ombra, H = o.head;
       let del = 0, daz = 0, tz = 0;
       for (const m of H.frames) {
-        const [el, az] = o.solarPos(2026, m.mo, m.d, m.h, m.mi, 41.8965, 12.48, m.tz);
+        const [el, az] = o.solarPos(2026, m.mo, m.d, m.h, m.mi, H.proj.lat0, H.proj.lon0, m.tz);
         del = Math.max(del, Math.abs(el - m.el));
         daz = Math.max(daz, m.el > 0 ? Math.abs(((az - m.az + 540) % 360) - 180) : 0);
-        if (o.romeTZ(2026, m.mo, m.d) !== m.tz) tz++;
+        if (o.cityTZ(2026, m.mo, m.d) !== m.tz) tz++;
       }
       return { del: +del.toFixed(4), daz: +daz.toFixed(4), tz };
     });
@@ -369,17 +369,19 @@ async function run(engine, label, breakStreams, which) {
     check('every shade percentage stays legible on the card, both themes',
           w1 >= 4.5 && w2 >= 4.5, `worst ${w1} and ${w2}`);
 
-    // metric and imperial, and the button says which you are looking at
+    // imperial by default in Detroit, metric a tap away, and the button says
+    // which you are looking at
     const dist = () => p.evaluate(() => document.querySelector('#rTitle').textContent);
-    const inKm = await dist();
-    await p.click('#btnUnits'); await p.waitForTimeout(300);
     const inMi = await dist();
-    check('distances switch between km and miles',
-          / km · /.test(inKm) && / mi · /.test(inMi) &&
-          await p.evaluate(() => document.querySelector('#btnUnits').textContent) === 'mi',
-          `${inKm}  ->  ${inMi}`);
+    const btn0 = await p.evaluate(() => document.querySelector('#btnUnits').textContent);
     await p.click('#btnUnits'); await p.waitForTimeout(300);
-    check('and switch back', await dist() === inKm);
+    const inKm = await dist();
+    check('distances default to miles, and switch to km',
+          / mi · /.test(inMi) && btn0 === 'mi' && / km · /.test(inKm) &&
+          await p.evaluate(() => document.querySelector('#btnUnits').textContent) === 'km',
+          `${inMi}  ->  ${inKm}`);
+    await p.click('#btnUnits'); await p.waitForTimeout(300);
+    check('and switch back', await dist() === inMi);
 
     // must alternate, not recompute from the system each time - when storage is
     // blocked that bug makes the toggle stick on one theme for ever
@@ -592,7 +594,7 @@ async function run(engine, label, breakStreams, which) {
     await p.press('#rToI', 'Enter'); await p.waitForTimeout(600);
     check('a street can be a destination, which only typing can reach',
           await p.inputValue('#rToI') === 'Via Giulia' &&
-          /km|m/.test(await p.textContent('#rTitle')),
+          /mi|ft|km|m/.test(await p.textContent('#rTitle')),
           `${await p.inputValue('#rToI')} - ${(await p.textContent('#rTitle')).trim()}`);
     // and an empty field offers the landmarks again rather than nothing
     await p.fill('#rToI', ''); await p.waitForTimeout(250);
@@ -701,7 +703,7 @@ async function installable(){
   // the manifest, and icons that are the sizes it claims
   const m = await (await fetch(base + 'manifest.webmanifest')).json();
   check('the manifest names the app and opens it standalone',
-        m.name === 'Ombra Roma' && m.display === 'standalone' && m.start_url === './',
+        m.name === 'Ombra Detroit' && m.display === 'standalone' && m.start_url === './',
         `${m.short_name}, ${m.display}`);
   const sizes = [];
   for (const ic of m.icons) {
@@ -721,7 +723,7 @@ async function installable(){
   check('and controls the page from the next one',
         await p.evaluate(() => !!navigator.serviceWorker.controller));
 
-  // a phone in a Roman courtyard with no signal
+  // a phone in a downtown parking structure with no signal
   await ctx.setOffline(true);
   await p.reload();
   check('it boots with no network at all', await booted());
@@ -877,7 +879,7 @@ async function hereAndNow(){
                                    geolocation: { latitude: 48.8566, longitude: 2.3522 } });   // Paris
   p = await ctx.newPage();
   await p.goto(url); await booted(p); await p.waitForTimeout(1500);
-  check('far from Rome, it opens quietly on the map', await p.evaluate(() =>
+  check('far from the city, it opens quietly on the map', await p.evaluate(() =>
     document.querySelector('#toast').hidden && window.ombra.me.watch === null));
   await p.click('#btnLoc');
   const note = await p.waitForFunction(() => !document.querySelector('#toast').hidden, { timeout: 8000 })

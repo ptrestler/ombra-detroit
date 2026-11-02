@@ -14,6 +14,7 @@ for i,s in enumerate(segs):
         keep.append(i); XY.append(list(zip(xs.tolist(),ys.tolist())))
 segs=[segs[i] for i in keep]
 print("segments in bbox:", len(segs))
+assert len(segs) < 65536, "eSeg is uint16 here and in the page: widen both"
 
 # a vertex shared by two or more segments (or any segment end) becomes a graph node
 K = lambda p: (round(p[0]*20), round(p[1]*20))

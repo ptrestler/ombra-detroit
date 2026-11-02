@@ -181,6 +181,9 @@ add("eU",  G["eU"].tobytes(),  "u4",len(G["eU"]))
 add("eV",  G["eV"].tobytes(),  "u4",len(G["eV"]))
 add("eLen",G["eLen"].tobytes(),"u2",len(G["eLen"]))
 NNODE=int(G["nnode"][0]); NEDGE=len(G["eSeg"])
+NETKM=round(float(G["eLen"].astype(np.float64).sum())/10/1000,1)
+_c=G["comp"]; _live=np.zeros(NNODE,bool); _live[G["eU"]]=True; _live[G["eV"]]=True
+BIGPCT=round(100*float((_c[_live]==G["big"][0]).mean()),1)
 print("graph packed: nodes",NNODE,"edges",NEDGE)
 
 gj=json.load(open(build("grid.json")))
@@ -192,7 +195,7 @@ pl=[[p["n"], CATS.index(p["c"]),
 print("places packed:", len(pl), "cats", CATS)
 head=dict(sections=hdr, nbld=gj.get("nbld"), nknown=gj.get("nknown"),
           ncad=gj.get("ncadastre"), nnaso=len(nax), ch=CH, nchurch=NCHURCH,
-          nnode=NNODE, nedge=NEDGE, ndate=NDATE, slots=SLOTS, city=CITY, pl=pl, cats=CATS, top=PP["top"], qs=QS, ox=OX, oy=OY, nseg=len(segs), nframe=T.shape[1],
+          nnode=NNODE, nedge=NEDGE, netkm=NETKM, bigpct=BIGPCT, ntree=gj.get("ntree"), nrow=gj.get("nrow"), ndate=NDATE, slots=SLOTS, city=CITY, pl=pl, cats=CATS, top=PP["top"], qs=QS, ox=OX, oy=OY, nseg=len(segs), nframe=T.shape[1],
           kinds=KINDS, names=names, frames=meta,
           bbox=dict(x0=float(bx0),y0=float(by0),x1=float(bx1),y1=float(by1)),
           proj=dict(lat0=city.LAT0, lon0=city.LON0, mperlat=111132.0,
