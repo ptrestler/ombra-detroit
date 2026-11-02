@@ -182,8 +182,8 @@ per 678 px², which is not a map any more. `NASO_ZOOM` is 0.40 px/m because that
 leaves about 45 of them on screen, and the number came from counting, not from
 taste. The legend row appears and disappears with them, because a key for
 something you cannot see is furniture.
-Those counts are Rome's 460. Detroit has 14 mapped drinking fountains in the box,
-so the threshold is generous here; it stays because the reasoning does.
+Those counts are Rome's 460. Detroit ships no fountains at all (see below);
+the reasoning stands for the next mark anyone adds.
 
 **Overlay UI must be listed in `UIHIT`.** `#stage` captures pointer events for
 pan/zoom; any panel not in that selector list gets its taps *also* treated as map
@@ -287,14 +287,12 @@ invisible in Chromium. `npx playwright install webkit` if it is missing.
 `tests/smoke.mjs` honours `PLAYWRIGHT_CHROMIUM_PATH` and `PLAYWRIGHT_WEBKIT_PATH`
 for unusual installs; leave both unset unless you actually need them.
 
-**The two "leaves the route most of the screen" checks read 49 % in a cloud
-session, and that is the session, not the page.** Playwright's Chromium there
-cannot load the webfonts, and the fallback runs taller. The last Rome build fails
-the same two checks at 49 % in the same session and passed them in CI. CI, which
-has the fonts, is the judge. A real 2 pp was found the same way, though: "No
-drinking fountain within 40 m of this walk." pushed its button onto a second
-line on most Detroit walks, because most of them pass no fountain — now "No
-drinking fountain on this walk.", one line.
+**The "leaves the route most of the screen" checks run close to the line in a
+cloud session.** Playwright's Chromium there cannot load the webfonts, and the
+fallback runs taller: the last Rome build failed two of them at 49 % in this
+session and passed them in CI. Detroit passes them here, because its card has no
+water line. If one fails in a session and passes in CI, it is the fonts; if it
+fails in CI, something took a line of the card.
 
 **Never `closePath` in a path with thousands of subpaths.** In Chromium it
 costs time proportional to the path so far, so drawing every outline in one
@@ -390,11 +388,17 @@ their detour (crow-flies A→F→B, and cost/(1+k)) and stop when that alone los
 which took Shadiest from 188 ms a recompute to 74 ms. The button only appears
 where the dry-stretch line does, and the line must stay one line on a phone:
 two pushes the card past half the map.
-All of that is Rome's measurement, with 460 fountains. With 14, most Detroit
-walks pass none, and a stop often adds distance without shortening the dry
-stretch much (one test walk: +0.46 mi, dry stretch 1.85 → 1.82 mi).
-`measure_via.mjs` has not been re-run for Detroit; whether the button earns its
-line here is open.
+All of that is Rome's measurement, with 460 fountains.
+
+**Detroit has no drinking fountains on the map, by decision.** The data has 14
+in the box; most walks passed none, and a water stop added distance without
+shortening the dry stretch (one test walk: +0.46 mi, 1.85 → 1.82 mi). Nobody
+plans a Detroit walk round a fountain. `city.FOUNTAINS = False` makes `pack.py`
+leave out the `nax`/`nay` sections entirely, and every fountain path in the page
+keys on `D.naX`: no marks, no legend row, no water line, no "Route via one", and
+the methodology panel drops its bullet. The code stays, shared with Rome;
+`tests/smoke.mjs` checks the "on" behaviour when the data has fountains and their
+complete absence when it does not.
 
 **Stops are chained in the order you give them, and nothing reorders them.**
 `measure_days.mjs` is why: the shadiest order is the shortest one on ~70 % of
@@ -472,9 +476,10 @@ lands in its own frames against `head.city`.
 `solarPos`, `cityTZ`, `dstWindow`, `me`) for debugging and for the
 tests.
 
-Drinking fountains ride along in two `u2` sections, `nax`/`nay` (named for Rome's
-nasoni), quantised like everything else; `head.nnaso` is the count (14). They
-carry no names: what you want from a fountain is that it is there.
+Drinking fountains, where a city has them, ride along in two `u2` sections,
+`nax`/`nay` (named for Rome's nasoni), quantised like everything else;
+`head.nnaso` is the count. Detroit's payload has neither section
+(`city.FOUNTAINS`).
 
 The quantisation origin is the bbox corner less 900 m (outlines that cross the
 edge keep their outside vertices), and values are clipped rather than wrapped.
@@ -518,8 +523,8 @@ comes from 3,452 mapped trees and is patchy.
 - **The ML heights.** 330 buildings carry Microsoft's estimate as if it were a
   measurement. Scoring them needs a second height for the same buildings: OSM
   tags, or USGS 3DEP lidar point clouds directly.
-- **Re-measure what is still Rome's:** `measure_via.mjs` (does "Route via one"
-  earn its line with 14 fountains?), `measure_boot.mjs`, `measure_days.mjs`.
+- **Re-measure what is still Rome's:** `measure_boot.mjs`, `measure_days.mjs`.
+  (`measure_via.mjs` measures the water stop, which Detroit does not ship.)
 - **Wider coverage.** New Center, Woodbridge west of the Lodge, the east
   riverfront to Belle Isle are just outside the box. File size is ~4.6 MB for
   this one, far under the 16 MB artifact cap.

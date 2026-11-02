@@ -140,9 +140,14 @@ for el in NASO:
     x, y = to_xy(lon, lat)
     if not (bx0 <= x <= bx1 and by0 <= y <= by1): continue
     nax.append(float(x)); nay.append(float(y))
-add("nax", q(np.array(nax), OX).tobytes(), "u2", len(nax))
-add("nay", q(np.array(nay), OY).tobytes(), "u2", len(nay))
-print("nasoni packed:", len(nax), "of", len(NASO), "fetched")
+if city.FOUNTAINS:
+    add("nax", q(np.array(nax), OX).tobytes(), "u2", len(nax))
+    add("nay", q(np.array(nay), OY).tobytes(), "u2", len(nay))
+    print("nasoni packed:", len(nax), "of", len(NASO), "fetched")
+else:
+    # no sections at all: every fountain path in the page keys on D.naX
+    nax, nay = [], []
+    print("fountains: off for this city (city.FOUNTAINS)")
 
 # --- churches with opening hours ------------------------------------------------
 # Cool refuges, and only where the page can say whether they are open: a church

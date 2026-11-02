@@ -409,32 +409,45 @@ async function run(engine, label, breakStreams, which) {
     await p.click('#btnTheme'); await p.waitForTimeout(250); const t2 = await gnd();
     check('theme toggle alternates', t0 !== t1 && t1 !== t2 && t0 === t2, `${t0} ${t1} ${t2}`);
     // the phone route panel fills the upper map, so the zoom stack steps aside
-    // Nasoni: counted along the route, and the line only speaks when it has
-    // something to act on, because it costs a line of card and the card costs map
-    const naso = await p.evaluate(() => {
-      const o = window.ombra, n = o.st.route.naso;
-      return { all: o.head.nnaso, on: n.n, gap: Math.round(n.gap),
-               line: document.querySelector('#rNaso').textContent.trim(),
-               legend: document.querySelector('#legend').classList.contains('naso') };
-    });
-    check('the payload carries the fountains', naso.all > 10, `${naso.all} fountains`);
-    // a projection or quantisation slip would put them in the Tyrrhenian Sea
-    check('and puts them inside the map', await p.evaluate(() => {
-      const o = window.ombra, d = o.data, bb = o.head.bbox;
-      for (let i = 0; i < d.naX.length; i++)
-        if (d.naX[i] < bb.x0 || d.naX[i] > bb.x1 ||
-            d.naY[i] < bb.y0 || d.naY[i] > bb.y1) return false;
-      return d.naX.length === o.head.nnaso;
-    }));
-    // Detroit has 14 mapped fountains, so most walks pass none: the line has to
-    // say that plainly, and otherwise speak only when the dry stretch is long
-    check('and picks out the ones along a route',
-          naso.on >= 0 && naso.on < naso.all, `${naso.on} on the way, driest ${naso.gap} m`);
-    check('the dry-stretch line says when there is no water, and is otherwise quiet unless the stretch is long',
-          naso.on === 0 ? /^No drinking fountain on this walk/.test(naso.line)
-                        : naso.gap >= 400 ? /dry stretch/.test(naso.line) : naso.line === '',
-          naso.line || '(silent, as it should be)');
-    check('the legend explains them while they are on the map', naso.legend);
+    // Drinking fountains are a per-city switch (city.FOUNTAINS). Off, the
+    // payload carries none and nothing on the page may mention water.
+    const FOUNT = await p.evaluate(() => !!window.ombra.data.naX);
+    if (FOUNT) {
+      // Nasoni: counted along the route, and the line only speaks when it has
+      // something to act on, because it costs a line of card and the card costs map
+      const naso = await p.evaluate(() => {
+        const o = window.ombra, n = o.st.route.naso;
+        return { all: o.head.nnaso, on: n.n, gap: Math.round(n.gap),
+                 line: document.querySelector('#rNaso').textContent.trim(),
+                 legend: document.querySelector('#legend').classList.contains('naso') };
+      });
+      check('the payload carries the fountains', naso.all > 10, `${naso.all} fountains`);
+      // a projection or quantisation slip would put them in the Tyrrhenian Sea
+      check('and puts them inside the map', await p.evaluate(() => {
+        const o = window.ombra, d = o.data, bb = o.head.bbox;
+        for (let i = 0; i < d.naX.length; i++)
+          if (d.naX[i] < bb.x0 || d.naX[i] > bb.x1 ||
+              d.naY[i] < bb.y0 || d.naY[i] > bb.y1) return false;
+        return d.naX.length === o.head.nnaso;
+      }));
+      // Detroit has 14 mapped fountains, so most walks pass none: the line has to
+      // say that plainly, and otherwise speak only when the dry stretch is long
+      check('and picks out the ones along a route',
+            naso.on >= 0 && naso.on < naso.all, `${naso.on} on the way, driest ${naso.gap} m`);
+      check('the dry-stretch line says when there is no water, and is otherwise quiet unless the stretch is long',
+            naso.on === 0 ? /^No drinking fountain on this walk/.test(naso.line)
+                          : naso.gap >= 400 ? /dry stretch/.test(naso.line) : naso.line === '',
+            naso.line || '(silent, as it should be)');
+      check('the legend explains them while they are on the map', naso.legend);
+    } else {
+      const dry = await p.evaluate(() => ({ n: window.ombra.head.nnaso, route: window.ombra.st.route.naso,
+        line: document.querySelector('#rNaso').textContent.trim(), hidden: document.querySelector('#rNaso').hidden,
+        via: !!document.querySelector('#rVia'), legend: document.querySelector('#legend').classList.contains('naso') }));
+      check('fountains are off for this city: none in the payload, none on a walk',
+            dry.n === 0 && dry.route === null, `${dry.n} fountains`);
+      check('and the card says nothing about water, and offers no water stop',
+            dry.line === '' && dry.hidden && !dry.via && !dry.legend, dry.line || '(silent)');
+    }
     // Churches: only those whose hours were readable, open or not for the day
     // and hour on the clock.
     const ch = await p.evaluate((CHURCH) => {
@@ -462,53 +475,61 @@ async function run(engine, label, breakStreams, which) {
             `${ch.name}: Sun 18:00 ${ch.sun18.open ? 'open' : 'closed'}, Tue 18:00 open until ${ch.tue18.until / 60 | 0}:${String(ch.tue18.until % 60).padStart(2, '0')}`);
 
 
-    // Via a nasone: a dry walk offers the stop, and taking it bends the walk
-    // through a fountain without breaking it into pieces
-    const keep = await p.evaluate(() => {
-      const o = window.ombra, st = o.st, H = o.head, keep = { a: st.a, b: st.b };
-      const [ax, ay] = o.nodeXY(st.a);
-      for (let n = 0; n < H.nnode; n += 37) {
-        if (o.comp(n) !== o.bigc()) continue;
-        const [x, y] = o.nodeXY(n), d = Math.hypot(x - ax, y - ay);
-        if (d < 1200 || d > 2500) continue;
-        st.b = n; o.recompute();
-        const na = st.route && st.route.naso;
-        if (na && (na.n === 0 || na.gap >= 400)) break;
-      }
-      o.renderRoute();
-      return keep;
-    });
-    const viaBtn = () => p.evaluate(() => {
-      const b = document.querySelector('#rVia'); return b ? b.textContent : null; });
-    check('a dry walk offers to route via a nasone', await viaBtn() === 'Route via one');
-    await p.click('#rVia'); await p.waitForTimeout(300);
-    const via = await p.evaluate(() => {
-      const o = window.ombra, r = o.st.route, D = o.data;
-      let joined = true;
-      for (let i = 1; i < r.edges.length; i++) {
-        const e0 = r.edges[i - 1], e1 = r.edges[i];
-        const s0 = [D.eU[e0], D.eV[e0]];
-        if (!s0.includes(D.eU[e1]) && !s0.includes(D.eV[e1])) joined = false;
-      }
-      return { via: r.via, on: r.via >= 0 && r.naso.idx.has(r.via), joined,
-               len: Math.round(r.len), direct: r.direct && Math.round(r.direct.len),
-               line: document.querySelector('#rNaso').textContent.trim(),
-               band: (() => {
-                 const s = document.querySelector('#stage').getBoundingClientRect();
-                 const c = document.querySelector('#rcard').getBoundingClientRect();
-                 return Math.round((c.top - s.top) / s.height * 100); })() };
-    });
-    check('and the walk then passes one', via.on, via.line);
-    check('as one connected walk, no longer than it has to be',
-          via.joined && via.len >= via.direct - 1, `${via.direct} m -> ${via.len} m`);
-    check('and the card still leaves the route most of the screen', via.band >= 50, `${via.band}% map`);
-    check('the stop can be taken back', await viaBtn() === 'Go direct');
-    await p.click('#rVia'); await p.waitForTimeout(300);
-    check('and taking it back restores the direct walk',
-          await p.evaluate(() => window.ombra.st.route.via === -1 && !window.ombra.st.via));
-    await p.evaluate(k => { const o = window.ombra; o.st.a = k.a; o.st.b = k.b;
-                            o.recompute(); o.renderRoute(); }, keep);
-
+    if (FOUNT) {
+      // Via a nasone: a dry walk offers the stop, and taking it bends the walk
+      // through a fountain without breaking it into pieces
+      const keep = await p.evaluate(() => {
+        const o = window.ombra, st = o.st, H = o.head, keep = { a: st.a, b: st.b };
+        const [ax, ay] = o.nodeXY(st.a);
+        for (let n = 0; n < H.nnode; n += 37) {
+          if (o.comp(n) !== o.bigc()) continue;
+          const [x, y] = o.nodeXY(n), d = Math.hypot(x - ax, y - ay);
+          if (d < 1200 || d > 2500) continue;
+          st.b = n; o.recompute();
+          const na = st.route && st.route.naso;
+          if (na && (na.n === 0 || na.gap >= 400)) break;
+        }
+        o.renderRoute();
+        return keep;
+      });
+      const viaBtn = () => p.evaluate(() => {
+        const b = document.querySelector('#rVia'); return b ? b.textContent : null; });
+      check('a dry walk offers to route via a nasone', await viaBtn() === 'Route via one');
+      await p.click('#rVia'); await p.waitForTimeout(300);
+      const via = await p.evaluate(() => {
+        const o = window.ombra, r = o.st.route, D = o.data;
+        let joined = true;
+        for (let i = 1; i < r.edges.length; i++) {
+          const e0 = r.edges[i - 1], e1 = r.edges[i];
+          const s0 = [D.eU[e0], D.eV[e0]];
+          if (!s0.includes(D.eU[e1]) && !s0.includes(D.eV[e1])) joined = false;
+        }
+        return { via: r.via, on: r.via >= 0 && r.naso.idx.has(r.via), joined,
+                 len: Math.round(r.len), direct: r.direct && Math.round(r.direct.len),
+                 line: document.querySelector('#rNaso').textContent.trim(),
+                 band: (() => {
+                   const s = document.querySelector('#stage').getBoundingClientRect();
+                   const c = document.querySelector('#rcard').getBoundingClientRect();
+                   return Math.round((c.top - s.top) / s.height * 100); })() };
+      });
+      check('and the walk then passes one', via.on, via.line);
+      check('as one connected walk, no longer than it has to be',
+            via.joined && via.len >= via.direct - 1, `${via.direct} m -> ${via.len} m`);
+      check('and the card still leaves the route most of the screen', via.band >= 50, `${via.band}% map`);
+      check('the stop can be taken back', await viaBtn() === 'Go direct');
+      await p.click('#rVia'); await p.waitForTimeout(300);
+      check('and taking it back restores the direct walk',
+            await p.evaluate(() => window.ombra.st.route.via === -1 && !window.ombra.st.via));
+      await p.evaluate(k => { const o = window.ombra; o.st.a = k.a; o.st.b = k.b;
+                              o.recompute(); o.renderRoute(); }, keep);
+    } else {
+      // without the water stop, the card on a plain walk must still leave the map most of the screen
+      const band0 = await p.evaluate(() => {
+        const s = document.querySelector('#stage').getBoundingClientRect();
+        const c = document.querySelector('#rcard').getBoundingClientRect();
+        return Math.round((c.top - s.top) / s.height * 100); });
+      check('and the card leaves the route most of the screen', band0 >= 50, `${band0}% map`);
+    }
     // Stops, chained in the order given: each leg routed at the hour it starts,
     // with the time you reach each one. A chosen stop leaves its field and lives
     // in the timeline, or two of them would take the card to three quarters of
@@ -623,16 +644,24 @@ async function run(engine, label, breakStreams, which) {
       document.querySelectorAll('#rResults .res').length >= 20));
 
     await p.click('#rClose'); await p.waitForTimeout(350);
-    // fountains over the whole city are not a map; they wait for the zoom.
-    // The city view, not wherever the last route left the zoom.
-    await p.click('#btnZfit'); await p.waitForTimeout(300);
-    check('no fountains on the city-wide view', await p.evaluate(() =>
-      !document.querySelector('#legend').classList.contains('naso')));
-    await p.evaluate(() => { window.ombra.st.scale = 0.5; });
-    await p.click('#btnZin'); await p.waitForTimeout(300);
-    check('and fountains once you zoom in to a walk', await p.evaluate(() =>
-      document.querySelector('#legend').classList.contains('naso')));
-    await p.click('#btnZfit'); await p.waitForTimeout(300);
+    if (FOUNT) {
+      // fountains over the whole city are not a map; they wait for the zoom.
+      // The city view, not wherever the last route left the zoom.
+      await p.click('#btnZfit'); await p.waitForTimeout(300);
+      check('no fountains on the city-wide view', await p.evaluate(() =>
+        !document.querySelector('#legend').classList.contains('naso')));
+      await p.evaluate(() => { window.ombra.st.scale = 0.5; });
+      await p.click('#btnZin'); await p.waitForTimeout(300);
+      check('and fountains once you zoom in to a walk', await p.evaluate(() =>
+        document.querySelector('#legend').classList.contains('naso')));
+      await p.click('#btnZfit'); await p.waitForTimeout(300);
+    } else {
+      await p.evaluate(() => { window.ombra.st.scale = 0.5; });
+      await p.click('#btnZin'); await p.waitForTimeout(300);
+      check('and none appear zoomed in, nor a legend row for them', await p.evaluate(() =>
+        !document.querySelector('#legend').classList.contains('naso')));
+      await p.click('#btnZfit'); await p.waitForTimeout(300);
+    }
 
     check('closing the route hands the console back',
           await p.evaluate(() =>

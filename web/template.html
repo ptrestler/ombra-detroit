@@ -1588,7 +1588,7 @@ from their neighbours, weighted by distance \u2014 measured against tagged build
 size, that estimate is off by about <b>4&nbsp;m</b>.</li>
 <li><b>__NTREE__ mapped trees</b>, __NROW__ tree rows and the wooded parts of parks, modelled as
 9–11 m canopy. Tree mapping is patchy, so some leafy streets score drier than they feel.</li>
-<li><b>__NNASO__ drinking fountains</b> from OpenStreetMap. They appear on the map as you zoom
+<li data-naso><b>__NNASO__ drinking fountains</b> from OpenStreetMap. They appear on the map as you zoom
 in, and a planned walk is told how many are on it and how long its driest stretch is. A dry
 walk can be routed via one: the stop chosen is the one that most shortens the driest stretch
 for the least extra walking, counting a metre of detour the same as a metre without water.
@@ -1684,6 +1684,7 @@ function openSheet(tab){
   else renderList();
   // no readable church hours in this build's data: say nothing rather than "0 of 95"
   if(tab==="how" && !(H.ch && H.ch.length)){ const li=$("#sheetBody [data-ch]"); if(li) li.remove(); }
+  if(tab==="how" && !D.naX){ const li=$("#sheetBody [data-naso]"); if(li) li.remove(); }
   $("#sheetBody").scrollTop=0;
 }
 function closeSheet(){ sheetOpen=false; $("#sheet").classList.remove("open"); }

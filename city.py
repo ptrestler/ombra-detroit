@@ -42,6 +42,12 @@ def tz_for(y, mo, day):
     start, end = dst_window(y)
     return TZ_DST if start <= (mo, day) < end else TZ_STD
 
+# Drinking fountains on the map and on walks ("Route via one"). Rome's nasoni
+# run all day on every other corner; Detroit's handful of mapped ones are not
+# something to plan a walk round, so the payload carries none and the page
+# shows no fountain, no water line and no water stop.
+FOUNTAINS = False
+
 # --- what the page is told ---------------------------------------------------
 UNITS = "mi"                      # the default until someone chooses: "mi" or "km"
 DESCRIPTION = ("Ray-traced shade map and shade-aware walking routes for downtown "
