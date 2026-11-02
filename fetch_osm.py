@@ -68,10 +68,14 @@ for i in range(NLAT):
                f'[out:json][timeout:60];way["highway"~"^({STREET_CLASSES})$"]{bb};out body geom;')
         cached(osm(f"tiles/bld_{i}_{j}.json"),
                f'[out:json][timeout:60];(way["building"]{bb};relation["building"]{bb};);out body geom;')
-        # Towers are mapped as building:part with their own heights - the
-        # outline round the Renaissance Center says little about its 222 m.
-        cached(osm(f"tiles/prt_{i}_{j}.json"),
-               f'[out:json][timeout:60];(way["building:part"]{bb};relation["building:part"]{bb};);out body geom;')
+
+
+# Towers are mapped as building:part with their own heights - the outline
+# round the Renaissance Center says little about its 222 m. Parts are sparse,
+# so one query covers the whole box (a mirror that turns most requests away
+# makes every request count).
+cached(osm("tiles/prt_all.json"),
+       f'[out:json][timeout:90];(way["building:part"]{BB};relation["building:part"]{BB};);out body geom;')
 
 # --- water, greenery, trees --------------------------------------------------
 cached(osm("extra_water.json"),
