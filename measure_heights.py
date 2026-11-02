@@ -1,202 +1,97 @@
 """Where the height numbers in heights.py and CLAUDE.md come from.
 
-Five buildings in six have no height in OpenStreetMap, so most of the shade
-model rests on heights that came from somewhere else. This scores those sources
-against the ones OSM does tag, which is the only ground truth available, and
-prints the tables those comments quote. Run it after changing anything about
-matching, and paste the numbers rather than adjusting them.
-
-The shipped rule is measured by calling `cadastre_heights` itself, so the
-headline rows describe the code that runs. The alternatives it is compared
-against are implemented here, because by definition they are not in the build.
+OSM height tags are the only measurement this build has, so everything else is
+an estimate made from them. This prints how much of the map is tagged, how the
+two kinds of tag agree, and how wrong each way of estimating an untagged height
+is, scored leave-one-out against the tags -- a building is never estimated from
+itself. The shipped rule is scored by calling heights.estimate_untagged, so the
+headline row describes the code that runs.
 
     python measure_heights.py            # needs data/, not build/
+
+Run it after changing anything about heights, and paste the numbers rather
+than adjusting them.
 """
-import csv, numpy as np
-from scipy.spatial import cKDTree
-from paths import eub
-from geo import to_xy
+import collections, re
+import numpy as np
 from buildings import load
-from heights import cadastre_heights, CADASTRE_SOURCE, CADASTRE_OFFSET_M
+from heights import (estimate_untagged, parse_len, DEFAULTS, LEVEL_M,
+                     INTERP_MIN_M, INTERP_MAX_M, INTERP_RMSE_M)
+from city import S, W, N, E
 
 RNG = np.random.default_rng(11)      # bootstrap only; nothing shipped depends on it
 BOOT = 2000
 
+blds = [b for b in load() if W <= b["c"][0] <= E and S <= b["c"][1] <= N]
+src = collections.Counter(b["src"] for b in blds)
+n = len(blds)
+print(f"{n:,} buildings in the bbox")
+for k, lbl in (("tag", "height tag"), ("levels", "floor count only"), ("default", "neither")):
+    print(f"  {lbl:<18} {src[k]:>7,}  {100*src[k]/n:5.1f} %")
 
-def rmse(e):
-    """Spread about the mean: an offset is fitted, so bias is not error."""
-    return float(np.sqrt(((e - e.mean()) ** 2).mean()))
+def kind(b): return str(b["tags"].get("building", "yes")).lower()
+print("\nBY TYPE   (the ten commonest; tagged = height or floors)")
+by = collections.defaultdict(lambda: [0, 0])
+for b in blds:
+    by[kind(b)][0] += 1; by[kind(b)][1] += b["src"] != "default"
+for t, (c, k) in sorted(by.items(), key=lambda kv: -kv[1][0])[:10]:
+    print(f"  {t:<16} {c:>6,}   tagged {100*k/c:5.1f} %")
 
+# --- floors -> metres, where a building carries both -------------------------
+both = []
+for b in blds:
+    t = b["tags"]
+    h = parse_len(t.get("height")) or parse_len(t.get("building:height"))
+    lv = t.get("building:levels")
+    try: lv = float(str(lv).split(";")[0])
+    except (TypeError, ValueError): lv = None
+    if h and lv and 1.5 <= h <= 400 and 0 < lv <= 120: both.append((lv, h))
+if len(both) >= 10:
+    L, H = np.array(both).T
+    a, c = np.polyfit(L, H, 1)
+    shipped = L * LEVEL_M + 1.2
+    print(f"\nFLOORS AGAINST HEIGHT, on the {len(both):,} buildings that carry both")
+    print(f"  fitted     height = {a:.2f} m x floors {c:+.2f} m   "
+          f"RMSE {np.sqrt(np.mean((L*a+c-H)**2)):5.2f}")
+    print(f"  shipped    height = {LEVEL_M:.2f} m x floors +1.20 m   "
+          f"RMSE {np.sqrt(np.mean((shipped-H)**2)):5.2f}  bias {np.mean(shipped-H):+.2f}")
 
-def inside(ring, px, py):
-    """Ray casting, vectorised over the query points. Odd crossings are in."""
-    x, y = ring[:, 0], ring[:, 1]
-    res = np.zeros(len(px), bool)
-    j = len(x) - 1
-    for i in range(len(x)):
-        res ^= ((y[i] > py) != (y[j] > py)) & (
-            px < (x[j] - x[i]) * (py - y[i]) / (y[j] - y[i] + 1e-12) + x[i])
-        j = i
-    return res
+# --- estimating the untagged, leave-one-out against the tags -----------------
+known = [b for b in blds if b["src"] != "default"]
+unk = [b for b in blds if b["src"] == "default"]
+KH = np.array([b["h"] for b in known])
 
+def score(pred, label):
+    e = pred - KH
+    print(f"  {label:<40} RMSE {np.sqrt(np.mean(e**2)):5.2f}  MAE {np.mean(np.abs(e)):5.2f}  "
+          f"bias {e.mean():+5.2f}")
+    return e
 
-blds = load()
-TAG = np.array([b["h"] for b in blds])
-tagged = np.array([b["src"] in ("tag", "levels") for b in blds])
-guess = ~tagged
-mrings = [[np.c_[to_xy([p[0] for p in r], [p[1] for p in r])] for r in b["rings"]]
-          for b in blds]
-MC = np.array([np.vstack(r).mean(0) for r in mrings])
-print(f"{len(blds):,} buildings   {tagged.sum():,} tagged   {guess.sum():,} not")
+print(f"\nESTIMATES, scored leave-one-out on the {len(known):,} tagged buildings")
+ship = score(estimate_untagged(known, known, exclude_self=True),
+             f"IDW k=15 <=500 m, clip {INTERP_MIN_M:.0f}-{INTERP_MAX_M:.0f} m (shipped)")
+score(estimate_untagged(known, known, exclude_self=True, lo=0, hi=1e9), "IDW, unclipped")
+for kk in (5, 30):
+    score(estimate_untagged(known, known, k=kk, exclude_self=True), f"IDW k={kk}, clipped")
+for lo, hi in ((3, 34), (3, 60), (5, 25)):
+    score(estimate_untagged(known, known, exclude_self=True, lo=lo, hi=hi), f"IDW, clip {lo}-{hi} m")
+score(np.array([DEFAULTS.get(kind(b), 17.0) for b in known], float), "per-type default (heights.DEFAULTS)")
+score(np.full(len(known), float(np.median(KH))), "the median tag, everywhere")
 
-EH, EF, ex, ey = [], [], [], []
-with open(eub("rome.csv"), newline="", encoding="utf-8") as f:
-    for r in csv.DictReader(f):
-        if r["height_source"] != CADASTRE_SOURCE:
-            continue
-        try:
-            h = float(r["height"]); lon = float(r["lon"]); lat = float(r["lat"])
-        except (TypeError, ValueError):
-            continue
-        try:
-            n = float(r["floors"])
-        except (TypeError, ValueError):
-            n = 1.0
-        EH.append(h); EF.append(n if n > 0 else 1.0); ex.append(lon); ey.append(lat)
-EH = np.array(EH); EF = np.array(EF)
-exm, eym = to_xy(ex, ey)
-EP = np.c_[exm, eym]
-tree = cKDTree(EP)
-print(f"{len(EH):,} cadastre parcels in the bbox")
+k = RNG.integers(0, len(ship), (BOOT, len(ship)))
+r = np.sqrt(np.mean(ship[k] ** 2, axis=1))
+lo, hi = np.percentile(r, [2.5, 97.5])
+print(f"\n  shipped RMSE {np.sqrt(np.mean(ship**2)):.2f} m, bootstrap [{lo:.2f}, {hi:.2f}]"
+      f"   heights.INTERP_RMSE_M = {INTERP_RMSE_M:.2f}")
 
-# what each outline contains, computed once; every containment variant reuses it
-contains = []
-for i, rr in enumerate(mrings):
-    allp = np.vstack(rr)
-    rad = float(np.hypot(*(allp - MC[i]).T).max()) + 1.0
-    cand = np.fromiter(tree.query_ball_point(MC[i], rad), int)
-    if cand.size:
-        hit = np.zeros(cand.size, bool)
-        for ring in rr:
-            hit |= inside(ring, EP[cand, 0], EP[cand, 1])
-        cand = cand[hit]
-    contains.append(cand)
-
-
-def near(radius):
-    d, j = tree.query(MC, k=1, distance_upper_bound=float(radius))
-    ok = np.isfinite(d)
-    return np.where(ok, EH[np.where(ok, np.minimum(j, len(EH) - 1), 0)], np.nan)
-
-
-def held(how):
-    out = np.full(len(blds), np.nan)
-    for i, sel in enumerate(contains):
-        if not len(sel):
-            continue
-        h = EH[sel]
-        out[i] = (float(np.median(h)) if how == "median" else
-                  float(h.mean()) if how == "mean" else
-                  float(h.max()) if how == "max" else
-                  float(np.sum(h * EF[sel]) / np.sum(EF[sel])))
-    return out
-
-
-# the interpolation every cadastre match displaces, scored leave-one-out so a
-# tagged building is never estimated from itself
-ki = np.where(tagged)[0]
-KH = TAG[ki]
-d, j = cKDTree(MC[ki]).query(MC[ki], k=16, distance_upper_bound=500.0)
-IDW = np.full(len(blds), np.nan)
-for n, gi in enumerate(ki):
-    dd, jj = d[n][1:], j[n][1:]
-    ok = np.isfinite(dd)
-    if ok.any():
-        w = 1.0 / np.maximum(dd[ok], 1.0)
-        IDW[gi] = float(np.sum(w * KH[jj[ok]]) / np.sum(w))
-
-
-def row(pred, label):
-    m = tagged & np.isfinite(pred)
-    mi = m & np.isfinite(IDW)
-    print(f"  {label:<44} {100 * np.isfinite(pred[guess]).mean():>4.0f} %   "
-          f"{rmse(pred[m] - TAG[m]):5.2f}   {rmse(IDW[mi] - TAG[mi]):5.2f}   n={m.sum():,}")
-
-
-print()
-print("MATCHING RULES       coverage of the untagged, error where there is a tag")
-print(f"  {'rule':<44} {'covers':>6}   {'RMSE':>5}   {'IDW':>5}")
-for r in (5, 8, 12):
-    row(near(r), f"nearest centroid <= {r} m")
-for how in ("median", "mean", "max", "floors-weighted"):
-    row(held(how), f"parcels inside the outline, {how}")
-FW = held("floors-weighted")
-NEW = np.where(np.isfinite(FW), FW, near(8))
-row(NEW, "...and nearest <= 8 m for the rest")
-
-print()
-print("OLD AGAINST NEW, on the buildings both rules reach")
-OLD = near(8)
-both = tagged & np.isfinite(OLD) & np.isfinite(NEW)
-eo, en = OLD[both] - TAG[both], NEW[both] - TAG[both]
-print(f"  nearest <= 8 m          {rmse(eo):5.2f}")
-print(f"  containment first       {rmse(en):5.2f}        n={both.sum():,}")
-k = RNG.integers(0, both.sum(), (BOOT, both.sum()))
-dif = np.array([rmse(eo[i]) - rmse(en[i]) for i in k])
-lo, hi = np.percentile(dif, [2.5, 97.5])
-print(f"  difference {dif.mean():+.2f} m  [{lo:+.2f}, {hi:+.2f}]  "
-      f"{'real' if lo > 0 or hi < 0 else 'noise'}")
-
-only = tagged & ~np.isfinite(OLD) & np.isfinite(NEW)
-ec, ei = NEW[only] - TAG[only], IDW[only] - TAG[only]
-k = RNG.integers(0, only.sum(), (BOOT, only.sum()))
-dif = np.array([rmse(ec[i]) - rmse(ei[i]) for i in k])
-lo, hi = np.percentile(dif, [2.5, 97.5])
-print(f"  on the {only.sum():,} it reaches that the radius missed: "
-      f"{rmse(ec):.2f} against interpolation's {rmse(ei):.2f}")
-print(f"  difference {dif.mean():+.2f} m  [{lo:+.2f}, {hi:+.2f}]  "
-      f"{'real' if lo > 0 or hi < 0 else 'noise'}")
-
-print()
-print("THE FALLBACK, on the buildings containment misses")
-miss = ~np.isfinite(FW)
-for r in (8, 12):
-    p = np.where(miss, near(r), np.nan)
-    m = tagged & np.isfinite(p) & np.isfinite(IDW)
-    print(f"  nearest <= {r:>2} m   {rmse(p[m] - TAG[m]):5.2f}   "
-          f"against interpolation's {rmse(IDW[m] - TAG[m]):5.2f}   n={m.sum():,}")
-
-print()
-print("THE OFFSET, five-fold")
-m = tagged & np.isfinite(NEW)
-idx = np.where(m)[0]
-RNG.shuffle(idx)
-folds = np.array_split(idx, 5)
-errs, offs = [], []
-for f in range(5):
-    tr = np.concatenate([folds[g] for g in range(5) if g != f])
-    o = float(np.mean(NEW[tr] - TAG[tr]))
-    offs.append(o)
-    errs.append(NEW[folds[f]] - TAG[folds[f]] - o)
-errs = np.concatenate(errs)
-print(f"  fitted on everything {np.mean(NEW[m] - TAG[m]):+.2f} m, "
-      f"shipped as {CADASTRE_OFFSET_M:+.2f}")
-print(f"  per fold {' '.join(f'{o:+.2f}' for o in offs)}")
-print(f"  out of sample RMSE {np.sqrt((errs ** 2).mean()):.2f}   "
-      f"in sample {rmse(NEW[m] - TAG[m]):.2f}")
-
-print()
-print("WHAT THE BUILD ACTUALLY DOES   (cadastre_heights, as shipped)")
-CH = cadastre_heights(eub("rome.csv"), [b["rings"] for b in blds],
-                      [b["c"][0] for b in blds], [b["c"][1] for b in blds])
-hit = np.isfinite(CH)
-print(f"  the cadastre reaches {int(hit[guess].sum()):,} of the {int(guess.sum()):,} "
-      f"untagged ({100 * hit[guess].mean():.0f} %); "
-      f"{int((~hit[guess]).sum()):,} stay interpolated")
-for label, pred, m in (
-        ("cadastre height", CH, tagged & hit),
-        ("interpolation left", IDW, tagged & ~hit & np.isfinite(IDW)),
-        ("every untagged height", np.where(hit, CH, IDW), tagged & np.isfinite(np.where(hit, CH, IDW)))):
-    e = pred[m] - TAG[m]
-    print(f"  {label:<22} RMSE {np.sqrt((e ** 2).mean()):5.2f}  "
-          f"MAE {np.abs(e).mean():5.2f}  bias {e.mean():+5.2f}   n={m.sum():,}")
+# The tagged buildings are not a random sample of the untagged ones: say how
+# different the two populations are, because the score above is only as good
+# as that resemblance.
+def mix(sel):
+    c = collections.Counter(kind(b) for b in sel); t = sum(c.values()) or 1
+    return {k: c[k] / t for k in ("house", "yes", "commercial", "apartments", "garage", "industrial")}
+mk, mu = mix(known), mix(unk)
+print("\n  type mix, tagged vs untagged: " +
+      "  ".join(f"{k} {100*mk[k]:.0f}/{100*mu[k]:.0f} %" for k in mk))
+print(f"  footprint median, tagged vs untagged: "
+      f"{np.median([b['area'] for b in known]):.0f} / {np.median([b['area'] for b in unk]):.0f} m^2")

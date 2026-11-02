@@ -1,9 +1,10 @@
 import io, os
 from buildstamp import stamp
 from paths import osm, dem, build, web, dist
+import city
 body = io.open(web("template.html"), encoding="utf-8").read()
 data = io.open(build("data.b64"), encoding="utf-8").read()
-body = body.replace("__DATA__", data)
+body = city.fill(body).replace("__DATA__", data)
 BUILD = stamp()
 assert "__BUILD__" in body, "build stamp placeholder not found"
 body = body.replace("__BUILD__", BUILD)
@@ -24,7 +25,7 @@ HEAD = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="Ray-traced shade map and shade-aware walking routes for the historic centre of Rome.">
+<meta name="description" content="__DESC__">
 <meta name="theme-color" content="#f2ece1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#131217" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -37,12 +38,12 @@ HEAD = """<!DOCTYPE html>
 """
 TAIL = "\n</body>\n</html>\n"
 
-out = HEAD + body + TAIL
+out = HEAD.replace("__DESC__", city.DESCRIPTION) + body + TAIL
 # newline="\n" to match build_artifact.py and .gitattributes, which both
 # say the build writes LF. Without it Python translates on Windows: the
 # standalone came out CRLF while the artifact did not, so git rewrote all
 # 5 MB of it on the way in.
-io.open(dist("ombra-roma.html"), "w", encoding="utf-8", newline="\n").write(out)
+io.open(dist(city.SLUG + ".html"), "w", encoding="utf-8", newline="\n").write(out)
 # what the deployed page polls to notice a newer build exists
 io.open(dist("version.txt"), "w", encoding="utf-8", newline="\n").write(BUILD + "\n")
 
@@ -53,8 +54,8 @@ io.open(dist("version.txt"), "w", encoding="utf-8", newline="\n").write(BUILD + 
 # where a service worker cannot run. Built here so they carry the same stamp.
 os.makedirs(dist("icons"), exist_ok=True)
 MANIFEST = {
-    "name": "Ombra Roma", "short_name": "Ombra",
-    "description": "Shade on every street of central Rome, and walks that keep to it.",
+    "name": city.NAME, "short_name": "Ombra",
+    "description": f"Shade on every street of {city.CITY}, and walks that keep to it.",
     "start_url": "./", "scope": "./", "id": "./",
     "display": "standalone", "orientation": "portrait",
     "background_color": "#f2ece1", "theme_color": "#f2ece1",
@@ -92,7 +93,7 @@ icon(180, 0.34).save(dist("icons/apple-touch-icon.png"))
 # The service worker. A new build writes a new sw.js (the stamp is in it), and
 # that is how a browser learns there is something to fetch: Pages serves the
 # page with max-age=600, but a service worker script is always revalidated.
-SW = r"""// Ombra Roma - built __BUILD__
+SW = r"""// __APPNAME__ - built __BUILD__
 const V = "__BUILD__";
 const PAGE = "ombra-page-" + V, FONTS = "ombra-fonts";
 const CORE = ["./", "manifest.webmanifest", "icons/icon-192.png",
@@ -136,9 +137,9 @@ self.addEventListener("fetch", e => {
     })));
   }
 });
-""".replace("__BUILD__", BUILD)
+""".replace("__BUILD__", BUILD).replace("__APPNAME__", city.NAME)
 io.open(dist("sw.js"), "w", encoding="utf-8", newline="\n").write(SW)
 
-print("standalone:", round(os.path.getsize(dist("ombra-roma.html"))/1e6, 2), "MB")
+print("standalone:", round(os.path.getsize(dist(city.SLUG + ".html"))/1e6, 2), "MB")
 print("build:", BUILD)
 print("starts:", repr(out[:60]))

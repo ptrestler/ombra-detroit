@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const page_ = resolve(root, 'dist/ombra-roma.html');
+const page_ = resolve(root, 'dist/ombra-detroit.html');
 if (!existsSync(page_)) { console.error('build it first: make'); process.exit(1); }
 const url = pathToFileURL(page_).href;
 let failures = 0;

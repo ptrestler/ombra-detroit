@@ -2,7 +2,7 @@ import json, math, numpy as np, collections
 from paths import osm, dem, build, web, dist
 from geo import to_xy
 
-S,W,N,E = 41.878, 12.4500, 41.9150, 12.5100
+from city import S, W, N, E
 bx0,by0 = to_xy(W,S); bx1,by1 = to_xy(E,N)
 
 segs = json.load(open(build("segments.json")))

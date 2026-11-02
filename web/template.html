@@ -1,9 +1,9 @@
-<title>Ombra Roma</title>
+<title>__APPNAME__</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600;6..96,700&family=Archivo:wght@400;500;600;700&display=swap">
 <style>
 :root{
   color-scheme: light;
-  --ground:#f2ece1;      /* travertine */
+  --ground:#f2ece1;      /* limestone */
   --bldg:#e3dacb;
   --bldg-line:#d3c7b3;
   --water:#c6d7e2;
@@ -530,7 +530,7 @@ tr.row:hover td{background:var(--panel-2)}
 
     <div id="top">
       <div class="brand">
-        <h1>Ombra Roma</h1>
+        <h1>__APPNAME__</h1>
         <p>Shade on every street</p>
       </div>
       <div class="topbtns">
@@ -558,7 +558,7 @@ tr.row:hover td{background:var(--panel-2)}
       <div class="lb">Shade on the better side</div>
       <div class="bar"></div>
       <div class="ends"><span>Full sun</span><span>50%</span><span>Full shade</span></div>
-      <div class="nasorow"><i></i>Nasone &#8212; drinkable, all year</div>
+      <div class="nasorow"><i></i>Drinking fountain</div>
       <div class="chrow"><i class="o"></i>Church, open <i class="c"></i>closed</div>
     </div>
 
@@ -635,7 +635,7 @@ tr.row:hover td{background:var(--panel-2)}
       <div class="sheetbody" id="sheetBody"></div>
     </div>
 
-    <div id="loading"><div class="l"><h1>Ombra Roma</h1><p id="lmsg">Unpacking shadows&#8230;</p></div></div>
+    <div id="loading"><div class="l"><h1>__APPNAME__</h1><p id="lmsg">Unpacking shadows&#8230;</p></div></div>
   </div>
 
   <div id="console">
@@ -698,22 +698,8 @@ const KINDW = {primary:1,secondary:1,tertiary:1,residential:2,unclassified:2,liv
 const MONTH = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTHFULL = ["January","February","March","April","May","June","July","August",
   "September","October","November","December"];
-const LANDMARKS = [
-  ["Colosseo",41.8902,12.4922,1],["Pantheon",41.8986,12.4769,1],["Trevi",41.9009,12.4833,1],
-  ["Piazza Navona",41.8992,12.4731,1],["Piazza di Spagna",41.9058,12.4823,1],
-  ["San Pietro",41.9022,12.4539,1],["Castel Sant'Angelo",41.9031,12.4663,2],
-  ["Piazza Venezia",41.8959,12.4823,1],["Campo de' Fiori",41.8956,12.4722,2],
-  ["Trastevere",41.8894,12.4695,1],["Termini",41.9010,12.5015,1],
-  ["Circo Massimo",41.8860,12.4853,2],["Piazza del Popolo",41.9109,12.4763,1],
-  ["Monti",41.8940,12.4890,2],["Foro Romano",41.8925,12.4853,2],
-  ["Isola Tiberina",41.8909,12.4776,2],["Quirinale",41.8996,12.4870,2],
-  ["Repubblica",41.9028,12.4952,2],["Gianicolo",41.8918,12.4614,2],
-  ["San Giovanni",41.8858,12.5057,1],["S. Maria Maggiore",41.8976,12.4986,2],
-  ["Aventino",41.8842,12.4794,2],["Campidoglio",41.8933,12.4828,2],
-  ["Largo Argentina",41.8955,12.4767,2],["Piazza Farnese",41.8951,12.4712,2],
-  ["Villa Borghese",41.9128,12.4830,2],["Ponte Sisto",41.8927,12.4707,3],
-  ["Porta Pia",41.9098,12.5040,3],["Piazza Barberini",41.9037,12.4886,3]
-];
+/* Map labels come in the payload (H.labels, [name, x m, y m, tier]): places.py
+   resolves each name against OpenStreetMap, so no coordinate here is typed. */
 
 /* ---------- css var helpers ---------- */
 const CS = getComputedStyle(document.documentElement);
@@ -880,9 +866,9 @@ function view(buf, sec){
 /* ---------- state ---------- */
 /* The map is sampled on the 1st and 15th, 06:00 to 21:30. Open on whichever of
    those is closest to now, rather than a hardcoded August afternoon.
-   Deliberately the *device's* clock, not Rome's: every time on this page is Rome
-   civil time, but someone planning from six timezones away wants the hour they
-   are living in, not a city that is already dark. Reading Rome's clock instead
+   Deliberately the *device's* clock, not the city's: every time on this page is
+   local civil time there, but someone planning from six timezones away wants the
+   hour they are living in, not a city that is already dark. Reading the city's clock instead
    opened the map at 21:30 and black. Outside 06:00-21:30 it clamps to the
    nearest end, which is honest - the clock in the corner says so. */
 function nowFrame(){
@@ -935,20 +921,20 @@ function checkFresh(){
 }
 
 const UNIT_KEY = "ombra.units";
-let imperial = false;
-try{ imperial = localStorage.getItem(UNIT_KEY) === "mi"; }catch(e){}
+let imperial = "__UNITS__" === "mi";          // the city's own, until someone chooses
+try{ const u = localStorage.getItem(UNIT_KEY); if(u) imperial = u === "mi"; }catch(e){}
 
 const NOW = nowFrame();
-/* Every hour on this page is Rome's, and nothing said so. It does not need
-   saying to someone standing in Rome, where their clock and the map's agree -
+/* Every hour on this page is the city's, and nothing said so. It does not need
+   saying to someone standing in it, where their clock and the map's agree -
    only to someone reading it from another timezone, where the map opens on
-   their hour and means Rome's. "Rome", not "Rome time": on an iPhone the
+   their hour and means the city's. "Detroit", not "Detroit time": on an iPhone the
    longer one ran past the phone's width and dropped "time" onto a line of its
    own, and beside a clock the city's name already says whose hour it is. */
 const AWAY = (()=>{ try{
-  return Intl.DateTimeFormat().resolvedOptions().timeZone === "Europe/Rome"
-    ? "" : " · Rome";
-}catch(e){ return " · Rome"; } })();
+  return Intl.DateTimeFormat().resolvedOptions().timeZone === "__TZNAME__"
+    ? "" : " · __CITY__";
+}catch(e){ return " · __CITY__"; } })();
 const st = {mo:NOW.mo, day:NOW.day, ti:NOW.ti, live:true, today:NOW.today, scale:1, cx:0, cy:0, sel:-1, hi:null,
             routing:false, a:-1, b:-1, k:1.2, route:null, refRoute:null,
             aL:"", bL:"", pick:null, mapPick:null, via:false, stops:[], stay:30};
@@ -1015,9 +1001,9 @@ function drawLabels(ctx){
   const maxTier = st.scale<0.10 ? 1 : (st.scale<0.20 ? 2 : 3);
   ctx.textAlign="center"; ctx.textBaseline="middle";
   const placed=[];
-  for(const [name,lat,lon,tier] of LANDMARKS){
+  for(const [name,lx,ly,tier] of (H.labels || [])){
     if(tier>maxTier) continue;
-    const x = sx((lon-H.proj.lon0)*H.proj.mperlon), y = sy((lat-H.proj.lat0)*H.proj.mperlat);
+    const x = sx(lx), y = sy(ly);
     if(x<40||x>W-40||y<26||y>Hh-26) continue;
     const size = tier===1?12.5:11;
     ctx.font = "600 "+size+"px Archivo, sans-serif";
@@ -1220,15 +1206,22 @@ function prepSegs(){
    changes. Blending the two closest suns did no better (1.67). So today is
    answered with the closest sun, worked out here with shade.py's own NOAA
    formula and observer. */
-const SUN_LAT = 41.8965, SUN_LON = 12.4800;
 const RAD = Math.PI/180;
-function lastSunday(y, m){           // m 1..12
-  const d = new Date(Date.UTC(y, m, 0));
-  return d.getUTCDate() - d.getUTCDay();
+/* city.py's clock, line for line. The observer and the offsets come in the
+   payload (H.proj, H.place), so the page and shade.py cannot disagree. */
+function nthSunday(y, m, n){         // m 1..12; n >= 1, or -1 for the last
+  if(n < 0){ const d = new Date(Date.UTC(y, m, 0)); return d.getUTCDate() - d.getUTCDay(); }
+  const w = new Date(Date.UTC(y, m-1, 1)).getUTCDay();
+  return 1 + (7 - w) % 7 + 7*(n - 1);
 }
-function romeTZ(y, m, d){            // CEST from the last Sunday of March to that of October
-  const k = m*100 + d;
-  return (k >= 300 + lastSunday(y, 3) && k < 1000 + lastSunday(y, 10)) ? 2 : 1;
+function dstWindow(y){               // [start, end) as month*100 + day
+  const r = (H.place && H.place.rule) || "us";
+  return r === "eu" ? [300 + nthSunday(y, 3, -1), 1000 + nthSunday(y, 10, -1)]
+                    : [300 + nthSunday(y, 3, 2), 1100 + nthSunday(y, 11, 1)];
+}
+function cityTZ(y, m, d){            // US: second Sunday of March to first of November
+  const k = m*100 + d, [a, b] = dstWindow(y), P = H.place || {std:-5, dst:-4};
+  return (k >= a && k < b) ? P.dst : P.std;
 }
 function solarPos(y, m, d, h, mi, lat, lon, tz){       // solar.py, line for line
   const jd0 = Date.UTC(y, m-1, d)/86400000 + 2440587.5;
@@ -1269,7 +1262,7 @@ function sunAt(t){
   let hit = SUNCACHE.get(key);
   if(!hit){
     const y = new Date().getFullYear(), m = st.today.mo + 1, d = st.today.d;
-    const [el, az] = solarPos(y, m, d, 6 + Math.floor(t/2), t%2 ? 30 : 0, SUN_LAT, SUN_LON, romeTZ(y, m, d));
+    const [el, az] = solarPos(y, m, d, 6 + Math.floor(t/2), t%2 ? 30 : 0, H.proj.lat0, H.proj.lon0, cityTZ(y, m, d));
     let fi;
     if(el <= 3) fi = (st.mo*2 + (st.day === 15 ? 1 : 0))*32 + t;   // night is night on any date
     else{
@@ -2241,8 +2234,8 @@ function renderRoute(){
       '<button class="rvia" id="rVia" aria-pressed="true">Go direct</button>';
   } else {
     $("#rNaso").innerHTML = !na ? "" : (na.n === 0
-      ? "No nasone within " + NASO_NEAR_M + " m of this walk."
-      : dry ? "<b>" + na.n + "</b> " + (na.n === 1 ? "nasone" : "nasoni") +
+      ? "No drinking fountain within " + NASO_NEAR_M + " m of this walk."
+      : dry ? "<b>" + na.n + "</b> " + (na.n === 1 ? "fountain" : "fountains") +
               " \u00b7 longest dry stretch <span class=\"dry\">" + fmtLen(na.gap) + "</span>"
             : "");
     if($("#rNaso").innerHTML && D.naX)
@@ -2425,7 +2418,7 @@ function renderResults(q){
   const rows=searchDest(q);
   const box=$("#rResults");
   if(!rows.length){ box.innerHTML='<div class="resnote">Nothing matched. Try a street name, '+
-    'a church, a piazza \u2014 or pick a point on the map.</div>'; return; }
+    'a park, a plaza \u2014 or pick a point on the map.</div>'; return; }
   const nq=norm(q);
   box.innerHTML = rows.map((r,ix)=>{
     let nm=r.n;
@@ -2985,7 +2978,7 @@ $("#tabHow").addEventListener("click", ()=>openSheet("how"));
 /* ---------- street suggestions ---------- */
 /* Typing a street used to be a guess with one shot at it: the field only matched
    on Enter, took whatever substring it found first in map order, and emptied the
-   box on a near miss. Rome has 2,000 street names and plenty of them start the
+   box on a near miss. A city has thousands of street names and plenty of them start the
    same way, so the list is the feature - the Enter key just takes the top of it.
    Ranking is the route picker's: a whole name first, then names that start with
    what you typed, then the rest, shortest first. */
@@ -3170,7 +3163,7 @@ const BOOT = {};
     locateIfAllowed();
     window.ombra = {st, BOOT, setPoint, setEnd, openPick, searchDest, entryXY, recompute, rampInk,
                     BUILD, checkFresh,
-                    renderRoute, frameIndex, churchStatus, sunAt, solarPos, romeTZ, nearestNode, labelForNode, nasoNodes, loadDate, me, goNow,
+                    renderRoute, frameIndex, churchStatus, sunAt, solarPos, cityTZ, dstWindow, nearestNode, labelForNode, nasoNodes, loadDate, me, goNow,
                     nodeXY:i=>[NODEX[i],NODEY[i]], comp:i=>COMP[i], bigc:()=>BIGC,
                     screenXY:i=>[sx(NODEX[i]),sy(NODEY[i])],   // where it is on screen now
                     get data(){return D}, get head(){return H}};

@@ -23,7 +23,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { existsSync } from 'node:fs';
 
-const page_ = resolve(dirname(fileURLToPath(import.meta.url)), 'dist/ombra-roma.html');
+const page_ = resolve(dirname(fileURLToPath(import.meta.url)), 'dist/ombra-detroit.html');
 if (!existsSync(page_)) { console.error('build it first: make'); process.exit(1); }
 const DAYS = +(process.argv[2] || 200), STOPS = +(process.argv[3] || 5), HOUR = +(process.argv[4] || 9);
 const exe = process.env.PLAYWRIGHT_CHROMIUM_PATH;

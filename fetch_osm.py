@@ -8,7 +8,7 @@ and building tiles took about an hour; the cache is worth keeping.
 import json, os, random, time, urllib.parse, urllib.request
 from paths import osm
 
-S, W, N, E = 41.878, 12.4500, 41.9150, 12.5100     # the mapped area
+from city import S, W, N, E, SLUG                   # the mapped area
 NLAT, NLON = 4, 4                                  # tiles, to keep queries small
 BB = f"({S},{W},{N},{E})"
 
@@ -25,7 +25,7 @@ def post(query, rounds=8):
             try:
                 data = urllib.parse.urlencode({"data": query}).encode()
                 req = urllib.request.Request(ep, data=data,
-                                             headers={"User-Agent": "ombra-roma/1.0"})
+                                             headers={"User-Agent": f"{SLUG}/1.0"})
                 with urllib.request.urlopen(req, timeout=300) as f:
                     j = json.loads(f.read())
                 if j.get("elements") is not None:
@@ -64,6 +64,10 @@ for i in range(NLAT):
                f'[out:json][timeout:180];way["highway"~"^({STREET_CLASSES})$"]{bb};out body geom;')
         cached(osm(f"tiles/bld_{i}_{j}.json"),
                f'[out:json][timeout:180];(way["building"]{bb};relation["building"]{bb};);out body geom;')
+        # Towers are mapped as building:part with their own heights - the
+        # outline round the Renaissance Center says little about its 222 m.
+        cached(osm(f"tiles/prt_{i}_{j}.json"),
+               f'[out:json][timeout:180];(way["building:part"]{bb};relation["building:part"]{bb};);out body geom;')
 
 # --- water, greenery, trees --------------------------------------------------
 cached(osm("extra_water.json"),
@@ -100,6 +104,9 @@ cached(osm("extra_poi.json"), f"""[out:json][timeout:200];
   node["place"~"^(suburb|quarter|neighbourhood|city_block)$"]["name"]{BB};
   nwr["leisure"="park"]["name"]{BB};
   way["highway"="pedestrian"]["name"]["area"="yes"]{BB};
+  nwr["place"="square"]["name"]{BB};
+  nwr["leisure"="stadium"]["name"]{BB};
+  nwr["amenity"~"^(arts_centre|library)$"]["name"]{BB};
   way["man_made"="bridge"]["name"]{BB};
   way["bridge"]["name"]["highway"]{BB};
 );

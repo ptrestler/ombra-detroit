@@ -1,4 +1,4 @@
-"""Terrain grid for the Rome shade model.
+"""Terrain grid for the shade model.
 Source: AWS Open Data terrain tiles (Terrarium encoding), SRTM/NED-derived, ~30 m.
 Sampled onto a 10 m grid covering the map bbox plus a 2 km pad, so hills outside
 the mapped area can still cast shadows into it."""
@@ -11,7 +11,7 @@ from geo import to_xy, to_ll
 Z    = 14
 PAD  = 2000.0      # metres beyond the bbox
 RES  = 10.0        # metres per cell
-S,W,N,E = 41.878, 12.4500, 41.9150, 12.5100
+from city import S, W, N, E
 bx0,by0 = to_xy(W,S); bx1,by1 = to_xy(E,N)
 TX0,TY0 = bx0-PAD, by0-PAD
 TX1,TY1 = bx1+PAD, by1+PAD
@@ -32,7 +32,7 @@ def tile(z,x,y):
         url=f"https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
         for a in range(4):
             try:
-                r=urllib.request.Request(url,headers={"User-Agent":"rome-shade/1.0"})
+                r=urllib.request.Request(url,headers={"User-Agent":"ombra/1.0"})
                 with urllib.request.urlopen(r,timeout=90) as f: raw=f.read()
                 open(fn,"wb").write(raw); break
             except Exception as e:

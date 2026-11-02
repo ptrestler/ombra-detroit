@@ -40,10 +40,10 @@ def solar_pos(year, month, day, hour_local, minute, lat, lon, tz_offset):
     return elev, az
 
 if __name__ == "__main__":
-    LAT, LON, TZ = 41.9028, 12.4964, 2  # CEST
+    from city import LAT0 as LAT, LON0 as LON, tz_for
     for (m,d,label) in [(6,21,"summer solstice"),(8,1,"Aug 1"),(12,21,"winter solstice")]:
         row=[]
         for h in [8,10,12,13,14,16,18,20]:
-            e,a = solar_pos(2026,m,d,h,0,LAT,LON,TZ)
+            e,a = solar_pos(2026,m,d,h,0,LAT,LON,tz_for(2026,m,d))
             row.append(f"{h:02d}h el={e:5.1f} az={a:5.1f}")
         print(label); print("   " + " | ".join(row))

@@ -4,17 +4,7 @@ from solar import solar_pos
 from streets import build_segments, sample_points
 from geo import to_ll
 
-LAT,LON = 41.8965, 12.4800
-import calendar as _cal
-def _last_sunday(y,m):
-    d=_cal.monthrange(y,m)[1]
-    while _cal.weekday(y,m,d)!=6: d-=1
-    return d
-def tz_for(y,mo,day):
-    """EU civil time in Rome: CEST (+2) from the last Sunday of March
-    to the last Sunday of October, otherwise CET (+1)."""
-    start=(3,_last_sunday(y,3)); end=(10,_last_sunday(y,10))
-    return 2 if start <= (mo,day) < end else 1
+from city import LAT0 as LAT, LON0 as LON, tz_for   # the observer and the civil clock
 EYE=1.7
 DATES=[(mo,d) for mo in range(1,13) for d in (1,15)]
 TIMES=[(h,m) for h in range(6,22) for m in (0,30)]
@@ -96,7 +86,7 @@ def shade_mask(elev,az):
 n=len(CX); cnt=np.bincount(SI,minlength=len(segs)).astype(np.float64)
 
 def frame(mo,day,h,mi,year=2026):
-    """One frame: the shade of every segment at a Rome civil time, as a percentage,
+    """One frame: the shade of every segment at a local civil time, as a percentage,
     and its metadata. A function so that measure_dates.py can ask for dates the
     build does not sample."""
     tz=tz_for(year,mo,day)
@@ -115,7 +105,7 @@ if __name__ == "__main__":
         for (h,mi) in TIMES:
             m,f=frame(mo,day,h,mi)
             meta.append(m); frames.append(f)
-        print("date",mo,day,"tz+%d"%meta[-1]["tz"],f"{time.time()-t0:.0f}s",flush=True)
+        print("date",mo,day,"tz%+d"%meta[-1]["tz"],f"{time.time()-t0:.0f}s",flush=True)
 
     F=np.stack(frames)
     np.save(build("frames.npy"),F); json.dump(meta,open(build("frames_meta.json"),"w"))
