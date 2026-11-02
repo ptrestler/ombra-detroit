@@ -432,10 +432,12 @@ a landmark, and its own name used to sit on its number.
   platform wraps it in the document shell, so it carries no doctype or `<head>`.
   Never publish the standalone — the shells would nest.
 
-**There is no Detroit artifact yet.** The URLs this file used to carry are
-Ombra Roma's artifact; publishing to them would overwrite Rome with Detroit.
-The first Detroit publish creates a new artifact — record its URL here. After
-that, publishing is refused unless the session has read the live version first.
+**The Detroit artifact is <https://claude.ai/artifact/NKMBE9AnrfenwzRom7LFZc>.**
+Publish `build/artifact.html` to that URL, not a new one: publishing without it
+creates a *second* artifact. Never use Ombra Roma's artifact URLs from the Rome
+repo — that would overwrite Rome with Detroit. Publishing to an artifact the
+session has not read is refused: read it, merge, publish. It is private until
+shared from its Share menu.
 
 Sharing an artifact is *pinned to a version*: after a meaningful change, update
 the pin from the share menu or the link keeps showing the old build. Signed out,
