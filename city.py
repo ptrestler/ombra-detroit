@@ -10,6 +10,11 @@ NAME   = "Ombra Detroit"          # the page title and the installed app's name
 CITY   = "Detroit"                # how the page refers to the place
 SLUG   = "ombra-detroit"          # file names: dist/<SLUG>.html
 
+# Where the map's data comes from: "osm" (fetch_osm.py, Overpass, data/osm/)
+# or "overture" (fetch_overture.py, Overture Maps on S3, data/overture/). Both
+# write the same files in the same shape; nothing downstream knows which.
+SOURCE = "overture"
+
 # The mapped area: downtown, Midtown, Corktown and the riverfront.
 S, W, N, E = 42.322, -83.082, 42.362, -83.030
 

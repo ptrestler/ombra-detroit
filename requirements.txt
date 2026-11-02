@@ -2,3 +2,6 @@ numpy>=1.26
 scipy>=1.11
 pillow>=10.0
 
+
+# Only the fetch needs these, and what it writes is committed under data/, so a
+# build does not:  pip install pyarrow shapely   (fetch_overture.py)

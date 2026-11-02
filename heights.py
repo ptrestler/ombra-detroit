@@ -50,7 +50,11 @@ INTERP_K       = 15
 INTERP_RADIUS  = 500.0
 INTERP_MIN_M   = 7.0
 INTERP_MAX_M   = 34.0
-INTERP_RMSE_M  = 6.94      # placeholder until measured for this city
+# Detroit, Overture heights (make heights): leave-one-out on the 2,145 tagged
+# buildings with footprints like the untagged ones (<= 188 m^2), 4.18 m. On
+# every tagged building it is 10.32 m, but that is towers estimated from their
+# neighbours, which is not what the 255 untagged -- median 27 m^2 -- are.
+INTERP_RMSE_M  = 4.18
 
 
 def estimate_untagged(known, unk, k=INTERP_K, radius=INTERP_RADIUS,

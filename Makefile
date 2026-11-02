@@ -2,33 +2,38 @@
 # The city lives in city.py; everything below is city-agnostic.
 # Stages are ordered; each depends on the one above. `make` builds everything.
 PY := python3
+# the map data the build reads (data/overture/ or data/osm/, per city.SOURCE):
+# a refetch has to rebuild everything downstream of it
+DATAD := $(shell $(PY) -c "import paths; print(paths.OSMD)")
+MAPDATA := $(wildcard $(DATAD)/tiles/*.json $(DATAD)/extra_*.json)
 
 .PHONY: all fetch rasters shade web artifact test heights clean distclean
 
 all: web
 
-## fetch -- OpenStreetMap and elevation data into data/ (cached; safe to re-run)
+## fetch -- map data (city.SOURCE: Overture or OSM) and elevation into data/
+## (cached; safe to re-run). The only target that needs the network.
 fetch:
-	$(PY) fetch_osm.py
+	$(PY) -c "import city, runpy; runpy.run_path('fetch_' + city.SOURCE + '.py', run_name='__main__')"
 	$(PY) terrain.py
 
 ## rasters -- 2 m building/canopy grid, 10 m terrain grid
 rasters: build/dsm.npy build/ground.npy
-build/dsm.npy: build_dsm.py heights.py buildings.py geo.py city.py
+build/dsm.npy: build_dsm.py heights.py buildings.py geo.py city.py $(MAPDATA)
 	$(PY) build_dsm.py
-build/ground.npy: build/terr.npy ground.py buildings.py heights.py
+build/ground.npy: build/terr.npy ground.py buildings.py heights.py $(MAPDATA)
 	$(PY) ground.py
 build/terr.npy: terrain.py geo.py city.py
 	$(PY) terrain.py
 
 ## shade -- the expensive stage: 768 sun positions x every street segment
 shade: build/frames.npy
-build/frames.npy: build/dsm.npy build/ground.npy shade.py solar.py streets.py geo.py city.py
+build/frames.npy: build/dsm.npy build/ground.npy shade.py solar.py streets.py geo.py city.py $(MAPDATA)
 	$(PY) shade.py
 
 ## web -- routing graph, destination list, payload, the standalone build
 web: dist/ombra-detroit.html
-build/data.b64: build/frames.npy graph.py places.py pack.py city.py
+build/data.b64: build/frames.npy graph.py places.py pack.py city.py $(MAPDATA)
 	$(PY) graph.py
 	$(PY) places.py
 	$(PY) pack.py

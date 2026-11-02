@@ -92,5 +92,8 @@ dsm=np.maximum(bsurf,canopy)
 np.save(build("dsm.npy"),dsm); np.save(build("canopy.npy"),canopy); np.save(build("bmask.npy"),bmask)
 json.dump({"x0":float(x0),"y0":float(y0),"x1":float(x1),"y1":float(y1),"NX":NX,"NY":NY,"RES":RES,
            "S":S,"W":W,"N":N,"E":E,"nbld":len(blds),"nknown":len(known),"ncadastre":ncad,
-           "ntree":ntree,"nrow":nrow,"nwood":nwood,"nparts":len(parts)},open(build("grid.json"),"w"))
+           "ntree":ntree,"nrow":nrow,"nwood":nwood,"nparts":len(parts),
+           # where the known heights came from (Overture records it; raw OSM is all tags)
+           "hsrc":dict(__import__("collections").Counter(
+               b["tags"].get("height:source") or "OpenStreetMap" for b in known))},open(build("grid.json"),"w"))
 print("dsm max",dsm.max()/10,"coverage",round(float((dsm>0).mean()),3))

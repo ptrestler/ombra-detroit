@@ -26,7 +26,7 @@ CAT = [
              or t.get("man_made")=="obelisk", 3),
  ("Church",  lambda t: t.get("amenity")=="place_of_worship" or t.get("historic")=="church", 1),
  ("Fountain",lambda t: t.get("amenity")=="fountain", 1),
- ("Theatre", lambda t: t.get("amenity") in ("theatre","university","arts_centre","library"), 2),
+ ("Theatre", lambda t: t.get("amenity") in ("theatre","university","arts_centre","library"), 3),
  ("Artwork", lambda t: t.get("tourism")=="artwork" or t.get("historic")=="memorial", 0),
 ]
 def classify(t):
@@ -86,7 +86,7 @@ SHORTLIST = [
  ("Renaissance Center", "Renaissance Center"), ("Detroit Riverwalk", "Detroit RiverWalk"),
  ("Grand Circus Park", "Grand Circus Park"), ("Comerica Park", "Comerica Park"),
  ("Ford Field", "Ford Field"), ("Little Caesars Arena", "Little Caesars Arena"),
- ("Fox Theatre", "Fox Theatre"), ("Detroit Opera House", "Detroit Opera House"),
+ ("Detroit Opera House", "Detroit Opera House"),
  ("Greektown", "Greektown"), ("Eastern Market", "Eastern Market"),
  ("Detroit Institute of Arts", "Detroit Institute of Arts"),
  ("Wayne State University", "Wayne State University"),
@@ -96,8 +96,7 @@ SHORTLIST = [
  ("Spirit of Detroit", "The Spirit of Detroit"), ("Dequindre Cut", "Dequindre Cut"),
  ("Huntington Place", "Huntington Place"), ("Corktown", "Corktown"),
  ("Midtown", "Midtown"), ("Lafayette Park", "Lafayette Park"),
- ("Detroit Public Library", "Detroit Public Library"),
- ("Charles H. Wright Museum", "Charles H. Wright Museum of African American History"),
+ ("Charles H. Wright Museum", "The Wright Museum"),
  ("Woodward Avenue", "Woodward Avenue"),
 ]
 top, missing = [], []
@@ -111,18 +110,18 @@ print("shortlist:", len(top))
 # place's own position or the middle of a named street's segments, and goes to
 # the page in local metres. Tier 1 shows zoomed out, 3 only close in.
 LABELS = [
- ("Downtown", "Downtown", 1), ("Midtown", "Midtown", 1), ("Corktown", "Corktown", 1),
+ ("Midtown", "Midtown", 1), ("Corktown", "Corktown", 1),
  ("Eastern Market", "Eastern Market", 1), ("Greektown", "Greektown", 2),
  ("Lafayette Park", "Lafayette Park", 2), ("Brush Park", "Brush Park", 2),
- ("Rivertown", "Rivertown", 2), ("Woodbridge", "Woodbridge", 2),
- ("Cass Corridor", "Cass Corridor", 2), ("Campus Martius", "Campus Martius Park", 1),
+ ("Woodbridge", "Woodbridge", 2),
+ ("Cass Park", "Cass Park", 3), ("Campus Martius", "Campus Martius Park", 1),
  ("Hart Plaza", "Hart Plaza", 2), ("Grand Circus Park", "Grand Circus Park", 2),
  ("Renaissance Center", "Renaissance Center", 1), ("Comerica Park", "Comerica Park", 2),
  ("Ford Field", "Ford Field", 2), ("Little Caesars Arena", "Little Caesars Arena", 2),
  ("Wayne State", "Wayne State University", 2), ("DIA", "Detroit Institute of Arts", 2),
  ("Michigan Central", "Michigan Central", 1), ("Roosevelt Park", "Roosevelt Park", 3),
  ("Capitol Park", "Capitol Park", 3), ("Cadillac Square", "Cadillac Square", 3),
- ("Fox Theatre", "Fox Theatre", 3), ("Dequindre Cut", "Dequindre Cut", 3),
+ ("Dequindre Cut", "Dequindre Cut", 3), ("Hudson's", "Hudson's Detroit", 2),
 ]
 from geo import to_xy
 SEGS = json.load(open(build("segments.json")))

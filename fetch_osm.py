@@ -6,7 +6,8 @@ and safe to re-run - it only fetches what is missing. A cold fetch of the street
 and building tiles took about an hour; the cache is worth keeping.
 """
 import json, os, random, socket, time, urllib.error, urllib.parse, urllib.request
-from paths import osm
+from paths import RAWOSM
+osm = lambda n: os.path.join(RAWOSM, n)    # always raw OSM, whatever city.SOURCE says
 
 from city import S, W, N, E, SLUG                   # the mapped area
 NLAT, NLON = 6, 6                                  # tiles, to keep queries small

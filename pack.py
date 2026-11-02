@@ -195,7 +195,7 @@ pl=[[p["n"], CATS.index(p["c"]),
 print("places packed:", len(pl), "cats", CATS)
 head=dict(sections=hdr, nbld=gj.get("nbld"), nknown=gj.get("nknown"),
           ncad=gj.get("ncadastre"), nnaso=len(nax), ch=CH, nchurch=NCHURCH,
-          nnode=NNODE, nedge=NEDGE, netkm=NETKM, bigpct=BIGPCT, ntree=gj.get("ntree"), nrow=gj.get("nrow"),
+          nnode=NNODE, nedge=NEDGE, netkm=NETKM, bigpct=BIGPCT, ntree=gj.get("ntree"), nrow=gj.get("nrow"), hsrc=gj.get("hsrc"), source=city.SOURCE,
           relief=json.load(open(build("ground_meta.json"))).get("relief_p5_p95_m"), ndate=NDATE, slots=SLOTS, city=CITY, pl=pl, cats=CATS, top=PP["top"], qs=QS, ox=OX, oy=OY, nseg=len(segs), nframe=T.shape[1],
           kinds=KINDS, names=names, frames=meta,
           bbox=dict(x0=float(bx0),y0=float(by0),x1=float(bx1),y1=float(by1)),

@@ -95,3 +95,27 @@ print("\n  type mix, tagged vs untagged: " +
       "  ".join(f"{k} {100*mk[k]:.0f}/{100*mu[k]:.0f} %" for k in mk))
 print(f"  footprint median, tagged vs untagged: "
       f"{np.median([b['area'] for b in known]):.0f} / {np.median([b['area'] for b in unk]):.0f} m^2")
+
+# The untagged are not a sample of the tagged: score again on the tagged ones
+# that look like them (small footprints), which is what an estimate is for.
+AREA = np.array([b["area"] for b in known])
+small = AREA <= max(60.0, float(np.percentile([b["area"] for b in unk], 75)) if unk else 60.0)
+print(f"\nON THE {int(small.sum()):,} TAGGED BUILDINGS WITH FOOTPRINTS LIKE THE UNTAGGED (<= {AREA[small].max():.0f} m^2)")
+def score_on(pred, label, m=small):
+    e = pred[m] - KH[m]
+    print(f"  {label:<40} RMSE {np.sqrt(np.mean(e**2)):5.2f}  MAE {np.mean(np.abs(e)):5.2f}  bias {e.mean():+5.2f}")
+score_on(estimate_untagged(known, known, exclude_self=True), "IDW, shipped clip")
+score_on(estimate_untagged(known, known, exclude_self=True, lo=0, hi=1e9), "IDW, unclipped")
+score_on(np.array([DEFAULTS.get(kind(b), 17.0) for b in known], float), "per-type default")
+for v in (3.0, 4.0, 5.0):
+    score_on(np.full(len(known), v), f"a flat {v:.0f} m")
+print(f"  their median tag {np.median(KH[small]):.1f} m")
+
+# where the tagged heights come from (Overture records it; raw OSM does not)
+def hsrc(b): return b["tags"].get("height:source") or ("OSM levels" if b["src"] == "levels" else "OSM tag")
+hs = collections.Counter(hsrc(b) for b in known)
+if any(b["tags"].get("height:source") for b in known):
+    print("\nHEIGHT SOURCES")
+    for k, c in hs.most_common():
+        sel = np.array([hsrc(b) == k for b in known])
+        print(f"  {k:<24} {c:>6,}   median {np.median(KH[sel]) if sel.any() else 0:5.1f} m")
