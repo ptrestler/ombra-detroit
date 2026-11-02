@@ -153,7 +153,7 @@ Parts are not buildings: they are in no count or report.
 open it directly.** It is written for the claude.ai Artifact wrapper, which
 supplies the doctype, `<head>`, charset and viewport at publish time.
 `build_standalone.py` adds a real document shell for the downloadable build.
-Anything you test must be `dist/ombra-roma.html`.
+Anything you test must be `dist/ombra-detroit.html`.
 
 **Don't use `DecompressionStream` to unpack the payload.** Some embedded web
 views — iOS Quick Look among them — expose the Streams API but never resolve it,
