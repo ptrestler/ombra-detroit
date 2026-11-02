@@ -1532,122 +1532,109 @@ function renderList(){
 const HOWTO = `
 <div class="prose">
 <h3>What you're looking at</h3>
-<p>Every street in Rome's historic core, coloured by how much of it is in shade at the
-moment you've scrubbed to \u2014 <b>red is open sun, blue is full shade</b>, and the purple
-between them is a street that is about half and half. It is ray-traced, not guessed: real
-building footprints, real terrain, real sun angles. Heights are the weak link, and
-<i>Where the data comes from</i> below says how weak.</p>
+<p>Every street in downtown Detroit, Midtown, Corktown and along the riverfront, coloured
+by how much of it is in shade at the moment you've scrubbed to — <b>red is open sun,
+blue is full shade</b>, and the purple between them is a street that is about half and half.
+It is ray-traced, not guessed: real building footprints, real terrain, real sun angles.
+Heights are the weak link, and <i>Where the data comes from</i> below says how weak.</p>
 
 <h3>How the shade is worked out</h3>
 <ul>
 <li>Street centrelines are cut into 40-metre pieces and sampled every 8 metres.</li>
-<li>Each sample is tested on <b>both sides</b> of the street, offset to where a pavement
-would be. The result assumes you're walking on the shadier side \u2014 which is what anyone
-sensible does at 38 \u00b0C.</li>
+<li>Each sample is tested on <b>both sides</b> of the street, offset to where a sidewalk
+would be. The result assumes you're walking on the shadier side — which is what anyone
+sensible does on a 90 °F afternoon.</li>
 <li>From each sample a ray is cast toward the sun and checked against a 2-metre height
 grid of every building and tree, sitting on a 10-metre terrain grid. If anything stands
-taller than the ray, that spot is in shade.</li>
-<li><b>Rome's hills shadow each other.</b> The ray carries the observer's own ground
-height, so the Janiculum darkens Trastevere in the early evening and the bridges go
-into shade well before the flat-earth version thought they would. Rays reach up to
-2.5&nbsp;km, because a hill blocks from far further away than a building does.</li>
-<li>Sun position comes from the NOAA solar-position algorithm for Rome's latitude, on the
-<b>1st and 15th of every month</b> \u2014 24 dates, each at half-hour steps. Times are Rome
-civil time, with summer time applied on the real EU dates (29 March to 25 October in 2026).</li>
+taller than the ray, that spot is in shade. Towers are drawn from their mapped parts,
+so the Renaissance Center's shadow is the shape of its cylinders, not of its podium.</li>
+<li>Sun position comes from the NOAA solar-position algorithm for Detroit's latitude, on the
+<b>1st and 15th of every month</b> — 24 dates, each at half-hour steps. Times are Detroit
+civil time, with daylight saving applied on the real US dates (8 March to 1 November in 2026).</li>
 <li>On every other day, the map works out where the sun really is and shows the stored
-moment with the sun closest to that \u2014 shade depends on where the sun is, not on the
+moment with the sun closest to that — shade depends on where the sun is, not on the
 date. Checked against the real shade computed for the 8th and 23rd of every month, that
-is off by <b>1.6 points</b> on average; showing the nearest sampled date instead was off by
-3.0, and by 12.9 around the clock changes, when it answered with a sun an hour away.</li>
+is off by <b>{{DATES_SUN}} points</b> on average; showing the nearest sampled date instead was off by
+{{DATES_NEAREST}}, and by {{DATES_CLOCK}} around the clock changes, when it answered with a sun an hour away.</li>
 </ul>
 
 <h3>Planning a walk</h3>
 <p>Press <b>Plan a shady walk</b> and fill in the two ends. Answer the first and it asks
-you the second. Each one searches <b>__NPLACE__ landmarks</b> \u2014 churches, museums, piazzas, stations, parks, ruins \u2014 and
-every one of the <b>__NNAME__ named streets</b> on the map, so you can type "Pantheon", "Trastevere"
-or "Via dei Coronari" rather than hunting for a pixel. <b>Pick on the map</b> is there for a doorway with
-no name \u2014 it tells you which street it landed on. <b>Use my location</b> reads your GPS, but
-only where the browser will hand it over: the copy of this page hosted on claude.ai runs inside a
-sandboxed frame that blocks location outright, so the button hides itself there. Download the page
-and open it directly and GPS works. The router then searches a walking network
-of <b>__NEDGE__ links</b> across about <b>988 km</b> of streets, lanes, steps and piazza edges,
-scoring every link at the moment you've scrubbed to.</p>
+you the second. Each one searches <b>__NPLACE__ landmarks</b> — parks, museums, plazas,
+stadiums, stations, churches — and every one of the <b>__NNAME__ named streets</b> on the
+map, so you can type "Campus Martius", "Eastern Market" or "Woodward Avenue" rather than
+hunting for a pixel. <b>Pick on the map</b> is there for a doorway with no name — it tells
+you which street it landed on. <b>Use my location</b> reads your GPS, but only where the
+browser will hand it over: the copy of this page hosted on claude.ai runs inside a sandboxed
+frame that blocks location outright, so the button hides itself there. Download the page and
+open it directly and GPS works. The router then searches a walking network of
+<b>__NEDGE__ links</b> across about <b>__NETKM__ km</b> of streets, sidewalks, paths and
+plaza edges, scoring every link at the moment you've scrubbed to.</p>
 <ul>
-<li>A link's cost is its length multiplied by <b>1 + k \u00d7 (fraction in sun)</b>.
+<li>A link's cost is its length multiplied by <b>1 + k × (fraction in sun)</b>.
 <b>Shortest</b> sets k to 0 and ignores the sun entirely. <b>Balanced</b> (k = 1.2) will walk
 about two metres of shade rather than one of sun. <b>Shadiest</b> (k = 4) will go a long way
 round to stay covered.</li>
 <li>The card always shows what the shortest way would have cost you, so you can see the trade
 rather than just take it on faith.</li>
-<li>Times assume 4.5 km/h \u2014 a steady walk, no stops, no waiting to cross.</li>
+<li>Times assume 4.5 km/h (2.8 mph) — a steady walk, no stops, no waiting to cross.</li>
 </ul>
 
 <h3>Where the data comes from</h3>
 <ul>
 <li><b>__NBLD__ buildings</b> from OpenStreetMap. <b>__NKNOWN__</b> carry a real height or
-floor count. Another <b>__NCAD__</b> take theirs from the Italian cadastre, via EUBUCCO \u2014
-the surveyed parcels that fall inside the building's own outline, so a measured height
-rather than a guess. The remaining <b>__NIMP__</b> are interpolated from their tagged
-neighbours, weighted by distance.</li>
-<li><b>4,800 mapped trees</b>, 215 tree rows and the wooded parts of parks, modelled as
-9\u201311 m canopy. Tree mapping is patchy, so some leafy streets score drier than they feel.</li>
-<li><b>__NNASO__ nasoni</b> \u2014 the public drinking fountains, from OpenStreetMap. They
-appear on the map as you zoom in, and a planned walk is told how many are on it and how
-long its driest stretch is. A dry walk can be routed via one: the stop chosen is the one
-that most shortens the driest stretch for the least extra walking, counting a metre of
-detour the same as a metre without water. On 300 random dry walks of 0.8\u20132.5&nbsp;km at
-14:00 in July, that took the median dry stretch from 841&nbsp;m to 581&nbsp;m for a median
-17&nbsp;m more walking. Private, customers-only and disused taps are left out; nothing
-here knows whether a particular one is switched off today.</li>
+floor count. The remaining <b>__NIMP__</b> are estimated from their tagged neighbours,
+weighted by distance — measured against the tags themselves, that estimate is off by about
+<b>{{INTERP_RMSE}}&nbsp;m</b>.</li>
+<li><b>__NTREE__ mapped trees</b>, __NROW__ tree rows and the wooded parts of parks, modelled as
+9–11 m canopy. Tree mapping is patchy, so some leafy streets score drier than they feel.</li>
+<li><b>__NNASO__ drinking fountains</b> from OpenStreetMap. They appear on the map as you zoom
+in, and a planned walk is told how many are on it and how long its driest stretch is. A dry
+walk can be routed via one: the stop chosen is the one that most shortens the driest stretch
+for the least extra walking, counting a metre of detour the same as a metre without water.
+Few are mapped here, so most walks are dry and many have no fountain worth the detour.
+Private, customers-only and disused taps are left out; nothing here knows whether a
+particular one is switched on today.</li>
 <li><b>__NCHOPEN__ churches</b> of the __NCHURCH__ on the map, the ones whose opening hours
 OpenStreetMap carries in a form the build can read: as refuges from the heat, they are only
-any use when open. Filled means open at the time on the clock, hollow closed. Seasonal
-hours tied to the clock change are not read, and those churches are left off rather than
-guessed. Hours change and few entries say when they were last checked, so treat them as
-a good guess, not a promise.</li>
-<li><b>Terrain</b> from the AWS Open Data terrain tiles (SRTM-derived, ~30&nbsp;m),
-sampled onto a 10&nbsp;m grid covering the map plus a 2&nbsp;km margin so hills outside
-the frame still cast into it.</li>
+any use when open. Filled means open at the time on the clock, hollow closed. Hours change
+and few entries say when they were last checked, so treat them as a good guess, not a
+promise.</li>
+<li><b>Terrain</b> from the AWS Open Data terrain tiles, which in the US come from the USGS
+3D Elevation Program: bare earth, sampled onto a 10&nbsp;m grid covering the map plus a
+2&nbsp;km margin. Detroit is a river terrace — about __RELIEF__&nbsp;m of relief across
+the grid — so terrain barely shades anything here, but it is in the model all the same.</li>
 <li>Build <b>__BUILD__</b>. If something you were told had shipped is missing, that
 is how to tell: the hosted page is cached for ten minutes after a deploy, and a
 prompt appears at the bottom once a newer one exists.</li>
-<li>Data \u00a9 OpenStreetMap contributors, ODbL. Building heights also from
-EUBUCCO v0.2 (ODbL), derived from the Lazio cadastre. Elevation data courtesy of the
-USGS/NASA SRTM programme via AWS Open Data.</li>
+<li>Data © OpenStreetMap contributors, ODbL. Elevation data courtesy of the USGS 3D
+Elevation Program via AWS Open Data.</li>
 </ul>
 
 <h3>What it doesn't know</h3>
 <ul>
-<li><b>The elevation data is a surface model, not bare earth.</b> It has buildings baked
-into it, so in the dense centre it reads roughly 12&nbsp;m high, and it understates the
-height difference between hill and valley by about 8&nbsp;m. Mostly this cancels \u2014 you
-and the building beside you sit on the same slightly-wrong ground \u2014 but it makes the
-hills a little gentler than they really are. Measured against known heights across the
-seven hills and the river, the relief is right to about <b>9.8&nbsp;m</b>, against
-<b>44.9&nbsp;m</b> for the flat-earth model this replaced. I tried three ways of
-recovering bare earth and every one made the relief worse, so the raw data stands.</li>
-<li>No awnings, umbrellas, scaffolding, parked buses, or the tarpaulin someone strung
-across the alley last week. Terrain is sampled at 10&nbsp;m, so a sunken lane or a
-retaining wall below that size is invisible to it.</li>
-<li>Clear sky only. Cloud, humidity and the radiant heat coming off travertine are not
-modelled \u2014 shade at 38 \u00b0C is still 38 \u00b0C, just survivable.</li>
-<li>Arcades and covered passages read as fully shaded, which is right, but a handful of
+<li>No awnings, umbrellas, scaffolding, parked trucks, or the People Mover's elevated track.
+Terrain is sampled at 10&nbsp;m, so a sunken freeway or a retaining wall below that size is
+blurred.</li>
+<li>Clear sky only. Cloud, humidity and the heat coming off asphalt and parking lots are not
+modelled — shade at 90 °F is still 90 °F, just survivable.</li>
+<li>Covered walkways and passages read as fully shaded, which is right, but a handful of
 narrow lanes get mistaken for them where the mapped centreline clips a building.</li>
-<li><b>Piazzas are walked round, not across.</b> Open squares are modelled as their perimeter,
-so the router will never invent a shortcut that doesn't exist \u2014 but it also won't cut
-straight over Piazza della Rotonda the way you would. Expect distances to run roughly a tenth
-long against a phone map. Hugging the edge is usually the shadier line anyway.</li>
-<li>97% of the network is one connected piece; the rest is courtyards and stubs cut off at the
-edge of the map. Start and end points snap to the connected part, which can be a few dozen
-metres from where you tapped.</li>
-<li>No crossings, traffic lights, steps-versus-ramp or one-way logic \u2014 it routes as the
+<li><b>Plazas are walked round, not across.</b> Open squares are modelled as their perimeter,
+so the router will never invent a shortcut that doesn't exist — but it also won't cut
+straight over Campus Martius the way you would. Hugging the edge is usually the shadier
+line anyway.</li>
+<li>__BIGPCT__% of the network is one connected piece; the rest is courtyards and stubs cut off
+at the edge of the map. Start and end points snap to the connected part, which can be a few
+dozen metres from where you tapped.</li>
+<li>No crossings, traffic lights, steps-versus-ramp or one-way logic — it routes as the
 crow walks.</li>
-<li><b>The city-wide numbers are solid. A single street may not be.</b> Three quarters of
-the buildings have a height somebody measured; the rest are interpolated from their
-neighbours, at about <b>7&nbsp;m</b> of error. Put that error back through the model and
-94% of the map does not move at all \u2014 but what moves, moves hard: <b>one reading in
-eighteen</b> shifts by more than ten percentage points, and nothing on the map tells you
-which one. Ray blocking is a threshold, so a few metres either changes nothing or
+<li><b>The city-wide numbers are solid. A single street may not be.</b> {{HEIGHT_SHARE}} of
+the buildings have a height somebody tagged; the rest are estimated, at about
+<b>{{INTERP_RMSE}}&nbsp;m</b> of error. Put that error back through the model and
+{{JIT_UNMOVED}}% of the map does not move at all — but what moves, moves hard: <b>{{JIT_TEN}}</b>
+of readings shift by more than ten percentage points, and nothing on the map tells you
+which ones. Ray blocking is a threshold, so a few metres either changes nothing or
 changes everything.</li>
 </ul>
 
@@ -1658,12 +1645,9 @@ Double-tap zooms in; the <b>+</b> and <b>−</b> buttons do the same, and the on
 returns to the whole city. On a keyboard: <b>+</b> and <b>−</b> zoom, arrows pan,
 <b>0</b> fits the city and <b>Esc</b> closes a card you did not mean to open.</li>
 <li>The scrubber runs 06:00 to 21:30; the warm band marks daylight for that month.
-Drag it and watch the shade rotate out of the east-west streets around one in the
-afternoon. A route's own strip scrubs the same way, for that walk.</li>
-<li>The copy at <b>ptrestler.github.io/ombra</b> installs as an app: in Safari,
-Share &#8594; <b>Add to Home Screen</b>; in Chrome, <b>Install app</b>. It then opens
-full screen, works with no signal, and can use your location. When there is a newer
-build it says so, and switches over only when you tap.</li>
+Drag it and watch the shade swing off the east-west streets around one in the afternoon.
+A route's own strip scrubs the same way, for that walk.</li>
+<li>Distances are in miles; the <b>mi</b> button switches to kilometres and remembers.</li>
 </ul>
 </div>`;
 
@@ -1675,19 +1659,23 @@ function openSheet(tab){
   $("#sheetTitle").textContent = tab==="how" ? "How it works" :
     (tab==="sun" ? "Worst sun" : "Shadiest streets");
   if(tab==="how") $("#sheetBody").innerHTML = HOWTO
-     .replace("__NEDGE__", H.nedge ? H.nedge.toLocaleString("en") : "54,530")
-     .replace("__NBLD__", H.nbld ? H.nbld.toLocaleString("en") : "14,158")
-     .replace("__NKNOWN__", H.nknown ? H.nknown.toLocaleString("en") : "2,443")
-     .replace("__NCAD__", H.ncad ? H.ncad.toLocaleString("en") : "8,180")
-     .replace("__NNASO__", H.nnaso ? H.nnaso.toLocaleString("en") : "460")
-     .replace("__NCHOPEN__", H.ch ? String(H.ch.length) : "59")
-     .replace("__NCHURCH__", H.nchurch ? String(H.nchurch) : "314")
-     .replace("__NIMP__", (H.nbld && H.nknown && H.ncad)
-        ? (H.nbld - H.nknown - H.ncad).toLocaleString("en") : "3,535")
+     .replace("__NEDGE__", H.nedge ? H.nedge.toLocaleString("en") : "")
+     .replace("__NETKM__", H.netkm ? Math.round(H.netkm).toLocaleString("en") : "")
+     .replace("__BIGPCT__", H.bigpct ? String(Math.floor(H.bigpct)) : "")
+     .replace("__NTREE__", H.ntree != null ? H.ntree.toLocaleString("en") : "")
+     .replace("__NROW__", H.nrow != null ? H.nrow.toLocaleString("en") : "")
+     .replace("__RELIEF__", H.relief != null ? String(Math.round(H.relief)) : "")
+     .replace("__NBLD__", H.nbld ? H.nbld.toLocaleString("en") : "")
+     .replace("__NKNOWN__", H.nknown != null ? H.nknown.toLocaleString("en") : "")
+     .replace("__NNASO__", H.nnaso != null ? H.nnaso.toLocaleString("en") : "")
+     .replace("__NCHOPEN__", H.ch ? String(H.ch.length) : "")
+     .replace("__NCHURCH__", H.nchurch != null ? String(H.nchurch) : "")
+     .replace("__NIMP__", (H.nbld && H.nknown != null)
+        ? (H.nbld - H.nknown - (H.ncad || 0)).toLocaleString("en") : "")
      // counted off the payload rather than typed in: the street total read
      // "2,088" for several rebuilds after it was really 2,067
-     .replace("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "872")
-     .replace("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "2,067");
+     .replace("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "")
+     .replace("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "");
   else renderList();
   $("#sheetBody").scrollTop=0;
 }
