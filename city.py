@@ -8,6 +8,7 @@ import calendar
 
 NAME   = "Ombra Detroit"          # the page title and the installed app's name
 CITY   = "Detroit"                # how the page refers to the place
+COUNTRY= "US"                     # the boundary the map is clipped to: area.py
 SLUG   = "ombra-detroit"          # file names: dist/<SLUG>.html
 
 # Where the map's data comes from: "osm" (fetch_osm.py, Overpass, data/osm/)

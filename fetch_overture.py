@@ -81,10 +81,41 @@ def centre(geom):
     c = geom.representative_point() if not isinstance(geom, Point) else geom
     return {"lat": round(c.y, 7), "lon": round(c.x, 7)}
 
-def dump(fn, elements):
+def rep(el):
+    """A point that stands for an element: its own, its centre, or its outline's."""
+    if el["type"] == "node": return el["lon"], el["lat"]
+    if el.get("center"): return el["center"]["lon"], el["center"]["lat"]
+    g = el.get("geometry") or el["members"][0]["geometry"]
+    return sum(p["lon"] for p in g) / len(g), sum(p["lat"] for p in g) / len(g)
+
+def dump(fn, elements, clip=True):
+    """Write a file, keeping only what lies in the city (see area.py)."""
+    n0 = len(elements)
+    if clip and elements:
+        lon, lat = zip(*(rep(e) for e in elements))
+        keep = area.inside(lon, lat)
+        elements = [e for e, k in zip(elements, keep) if k]
     json.dump({"source": f"Overture Maps {RELEASE}", "elements": elements},
               open(os.path.join(OUT, fn), "w"))
-    print(f"   -> {fn}: {len(elements):,} elements", flush=True)
+    out = f" ({n0 - len(elements):,} outside {city.CITY} dropped)" if n0 != len(elements) else ""
+    print(f"   -> {fn}: {len(elements):,} elements{out}", flush=True)
+
+# --- the city itself: everything else is clipped to it (area.py) -------------
+import area
+from shapely.geometry import mapping
+B = [r for r in read("divisions", "division_area", ["names", "subtype", "country", "geometry"])
+     if r.get("subtype") == "locality" and r.get("country") == city.COUNTRY and name(r) == city.CITY]
+if B:
+    g = wkb.loads(B[0]["geometry"]).buffer(area.BUFFER_DEG).simplify(0.0001)
+    polys = [g] if isinstance(g, Polygon) else list(g.geoms)
+    rr = [list(p.exterior.coords) for p in polys] + [list(h.coords) for p in polys for h in p.interiors]
+    json.dump({"source": f"Overture Maps {RELEASE}, locality {city.CITY} ({city.COUNTRY}), "
+                         f"buffered {area.BUFFER_DEG} deg", "rings": [[[round(x, 6), round(y, 6)] for x, y in r] for r in rr]},
+              open(area.PATH, "w"))
+    print(f"   boundary: {city.CITY}, {len(rr)} ring(s) -> {os.path.relpath(area.PATH)}")
+else:
+    print(f"   no locality named {city.CITY} in {city.COUNTRY}: nothing clipped")
+    if os.path.exists(area.PATH): os.remove(area.PATH)
 
 def height_source(r):
     for s in r.get("sources") or []:
@@ -175,7 +206,7 @@ for r in read("base", "water", ["id", "names", "subtype", "class", "geometry"]):
     if name(r): t["name"] = name(r)
     el = areas(g, t)
     if el: wa.append(el)
-dump("extra_water.json", wa)
+dump("extra_water.json", wa, clip=False)      # the river is drawn whole
 
 LAND = read("base", "land", ["id", "names", "subtype", "class", "geometry"])
 gr = []

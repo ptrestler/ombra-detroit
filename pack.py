@@ -185,7 +185,10 @@ print("churches with readable hours packed:", len(CH), "of", NCHURCH)
 from addresses import load as load_addresses
 from paths import RAWOSM
 import os
-ADR = [a for a in load_addresses(os.path.join(RAWOSM, "extra_addr.json"))]
+ADR = load_addresses(os.path.join(RAWOSM, "extra_addr.json"))
+# in the city, not just in the box: across the river is Windsor (area.py)
+import area
+if ADR: ADR = [a for a, k in zip(ADR, area.inside([a[3] for a in ADR], [a[4] for a in ADR])) if k]
 AST = sorted({a[0] for a in ADR}); asi = {s: i for i, s in enumerate(AST)}
 AROWS = []
 for st, lo, hi, lon, lat, lbl in ADR:
