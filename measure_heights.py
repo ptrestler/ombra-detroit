@@ -106,6 +106,7 @@ def score_on(pred, label, m=small):
     print(f"  {label:<40} RMSE {np.sqrt(np.mean(e**2)):5.2f}  MAE {np.mean(np.abs(e)):5.2f}  bias {e.mean():+5.2f}")
 score_on(estimate_untagged(known, known, exclude_self=True), "IDW, shipped clip")
 score_on(estimate_untagged(known, known, exclude_self=True, lo=0, hi=1e9), "IDW, unclipped")
+score_on(estimate_untagged(known, known, exclude_self=True, lo=7, hi=34), "IDW, clip 7-34 m (Rome's floor)")
 score_on(np.array([DEFAULTS.get(kind(b), 17.0) for b in known], float), "per-type default")
 for v in (3.0, 4.0, 5.0):
     score_on(np.full(len(known), v), f"a flat {v:.0f} m")
