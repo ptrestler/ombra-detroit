@@ -518,6 +518,23 @@ tr.row:hover td{background:var(--panel-2)}
   #zoomctl{right:16px;top:60px}
   .desk-note{display:block}
 }
+/* The sidebar folds away on desktop, for the whole width of the map. One tab on
+   the map's edge against it does both jobs: "‹" while it is open, and while it
+   is shut the clock and date - the sidebar held the only copy of the hour, and
+   a folded panel should not hide what time the map is showing. */
+#sideTog{display:none}
+@media (min-width:860px){
+  #sideTog{display:flex;align-items:center;gap:7px;position:absolute;z-index:6;left:0;top:50%;
+    transform:translateY(-50%);min-height:44px;padding:8px 9px 8px 7px;
+    border:1px solid var(--line);border-left:0;border-radius:0 10px 10px 0;
+    background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(10px);
+    box-shadow:var(--shadow);color:var(--ink-2);font:600 12px Archivo,system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;cursor:pointer}
+  #sideTog .ar{font-size:15px;line-height:1;color:var(--ink)}
+  #sideTog .t{display:none;white-space:nowrap}
+  #app.sidecollapsed #sideTog .t{display:inline}
+  #app.sidecollapsed #console{display:none}
+}
 .desk-note{display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
   font-size:11.5px;color:var(--muted);line-height:1.55}
 </style>
@@ -551,6 +568,8 @@ tr.row:hover td{background:var(--panel-2)}
 
     <div id="toast" role="status" hidden></div>
     <button id="btnNow" hidden>&#8634; Back to now</button>
+    <button id="sideTog" aria-expanded="true" aria-controls="console" aria-label="Hide the panel"
+            title="Hide the panel"><span class="t" id="sideTogT"></span><span class="ar" aria-hidden="true">&#8249;</span></button>
 
     <button id="fresh" hidden>A newer version is ready &#183; <b>Reload</b></button>
 
@@ -1441,6 +1460,7 @@ function updateReadouts(){
   const m = sunAt(st.ti), fi = m.fi;
   $("#clkT").textContent = fmtTime(st.ti);
   $("#clkD").textContent = dayLabel() + " " + MONTH[shownMo()] + AWAY;
+  $("#sideTogT").textContent = fmtTime(st.ti) + " \u00b7 " + dayLabel() + " " + MONTH[shownMo()];
   const up = m.el > 0;
   $("#sunEl").textContent = up ? Math.round(m.el)+"\u00b0" : "down";
   $("#sunAz").textContent = up ? COMPASS(m.az) : "\u2014";
@@ -2132,6 +2152,7 @@ const fmtLen = m => {
 const esc = s0 => s0.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
 const fmtMin = m =>Math.max(1,Math.round(m/75))+" min";
 function openRoute(){
+  if(sideCollapsed && DESK.matches) setSide(false, false);   // the route card lives in it
   st.routing=true; stage.classList.add("routing");
   $("#app").classList.add("routing"); resize();   // the map just grew by a button
   $("#btnRoute").setAttribute("aria-pressed","true");
@@ -2659,7 +2680,7 @@ function pick(px,py){
 
 /* ---------- interaction ---------- */
 let ptrs=new Map(), lastDist=0, moved=0, dragging=false;
-const UIHIT = '#top, #zoomctl, #card, #rcard, #sheet, #legend, #fresh, #toast, #btnNow';
+const UIHIT = '#top, #zoomctl, #card, #rcard, #sheet, #legend, #fresh, #toast, #btnNow, #sideTog';
 stage.addEventListener("pointerdown", e=>{
   if(e.target.closest && e.target.closest(UIHIT)) return;   // let the controls have the tap
   stage.setPointerCapture(e.pointerId);
@@ -2795,6 +2816,24 @@ $("#conToggle").addEventListener("click", ()=>{
   try{ localStorage.setItem(CON_KEY, conCollapsed ? "1" : "0"); }catch(e){}
   setConsole(conCollapsed);
 });
+/* The desktop sidebar folds too, and is remembered the same way. The class is
+   harmless on a phone - only the desktop layout reads it - so turning a window
+   narrow and back keeps the choice. */
+const SIDE_KEY = "ombra.side";
+let sideCollapsed = false;
+try{ sideCollapsed = localStorage.getItem(SIDE_KEY) === "1"; }catch(e){}
+function setSide(collapsed, remember){
+  sideCollapsed = collapsed;
+  if(remember){ try{ localStorage.setItem(SIDE_KEY, collapsed ? "1" : "0"); }catch(e){} }
+  $("#app").classList.toggle("sidecollapsed", collapsed);
+  const b = $("#sideTog"), label = collapsed ? "Show the panel" : "Hide the panel";
+  b.setAttribute("aria-expanded", String(!collapsed));
+  b.setAttribute("aria-label", label); b.title = label;
+  b.querySelector(".ar").textContent = collapsed ? "\u203a" : "\u2039";
+  resize();                       // the map just got wider or narrower
+}
+setSide(sideCollapsed, false);
+$("#sideTog").addEventListener("click", ()=> setSide(!sideCollapsed, true));
 
 function applyUnits(){
   const b = $("#btnUnits");
@@ -3158,7 +3197,7 @@ const BOOT = {};
     fitAll();
     updateReadouts(); drawAll(); renderList(); lap("draw");
     locateIfAllowed();
-    window.ombra = {st, BOOT, setPoint, setEnd, openPick, searchDest, entryXY, recompute, rampInk,
+    window.ombra = {st, BOOT, setPoint, setEnd, openPick, openRoute, searchDest, entryXY, recompute, rampInk,
                     BUILD, checkFresh,
                     renderRoute, frameIndex, churchStatus, sunAt, solarPos, cityTZ, dstWindow, nearestNode, labelForNode, nasoNodes, loadDate, me, goNow,
                     nodeXY:i=>[NODEX[i],NODEY[i]], comp:i=>COMP[i], bigc:()=>BIGC,

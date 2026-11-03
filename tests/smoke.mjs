@@ -694,6 +694,42 @@ async function desktopLayout(){
           const x = document.querySelector('#rClose').getBoundingClientRect();
           return x.top >= c.top - 1 && x.right <= c.right + 1; }));
   check('the zoom controls stay reachable', await p.locator('#btnZin').isVisible());
+  await p.click('#rClose'); await p.waitForTimeout(300);
+
+  // The sidebar folds away for the whole width of the map, and the tab that
+  // brings it back carries the clock, because the sidebar held the only copy.
+  const side = () => p.evaluate(() => ({
+    con: getComputedStyle(document.querySelector('#console')).display !== 'none',
+    w: document.querySelector('#stage').getBoundingClientRect().width,
+    cw: document.querySelector('#base').width / Math.min(window.devicePixelRatio || 1, 2),
+    tab: document.querySelector('#sideTog').textContent.trim(),
+    clock: document.querySelector('#clkT').textContent,
+    exp: document.querySelector('#sideTog').getAttribute('aria-expanded') }));
+  const s0 = await side();
+  await p.click('#sideTog'); await p.waitForTimeout(300);
+  const s1 = await side();
+  check('the sidebar folds away and the map takes the width',
+        s0.con && !s1.con && s1.w >= s0.w + 380 && Math.abs(s1.cw - s1.w) <= 1 && s1.exp === 'false',
+        `${Math.round(s0.w)} -> ${Math.round(s1.w)} px`);
+  check('and the tab that brings it back shows the time on the map',
+        s1.tab.startsWith(s0.clock), s1.tab);
+  check('a fold is a map tap for nothing underneath it', await p.evaluate(() =>
+    !document.querySelector('#card').classList.contains('open')));
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => document.querySelector('#loading').style.display === 'none',
+                          { timeout: 45000 });
+  check('and stays folded after a reload', !(await side()).con);
+  // the button that starts a walk is in the folded panel, but anything that
+  // starts one has to bring the panel back with it
+  await p.evaluate(() => window.ombra.openRoute()); await p.waitForTimeout(400);
+  check('planning a walk opens it, because the route card lives in it',
+        (await side()).con && await p.locator('#rcard').isVisible());
+  await p.click('#rClose'); await p.waitForTimeout(300);
+  await p.click('#sideTog'); await p.waitForTimeout(200);   // fold, then back
+  await p.click('#sideTog'); await p.waitForTimeout(300);
+  const s2 = await side();
+  check('and the tab unfolds it again', s2.con && s2.exp === 'true' && Math.abs(s2.w - s0.w) <= 1,
+        `${Math.round(s2.w)} px`);
   check('no console or page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
   await browser.close();
 }

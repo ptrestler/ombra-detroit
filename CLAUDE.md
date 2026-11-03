@@ -287,6 +287,15 @@ invisible in Chromium. `npx playwright install webkit` if it is missing.
 `tests/smoke.mjs` honours `PLAYWRIGHT_CHROMIUM_PATH` and `PLAYWRIGHT_WEBKIT_PATH`
 for unusual installs; leave both unset unless you actually need them.
 
+**The desktop sidebar folds, and the tab that unfolds it carries the clock.**
+`#sideTog` sits on the map's edge against the sidebar: "‹" while it is open,
+"16:00 · 3 Nov ›" while it is folded, because the sidebar holds the only clock and
+scrubber on desktop and a folded panel must not hide what hour the map shows.
+`#app.sidecollapsed` is read only by the desktop layout (a phone keeps its own
+fold, `#conToggle`), the choice is remembered in `ombra.side`, and `openRoute`
+unfolds it, since on desktop the route card lives inside the sidebar. The tab is
+in `UIHIT`, so a tap on it is not also a map tap.
+
 **The "leaves the route most of the screen" checks run close to the line in a
 cloud session.** Playwright's Chromium there cannot load the webfonts, and the
 fallback runs taller: the last Rome build failed two of them at 49 % in this
