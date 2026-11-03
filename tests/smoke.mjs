@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const page_ = resolve(root, 'dist/ombra-roma.html');
+const page_ = resolve(root, 'dist/ombra-detroit.html');
 if (!existsSync(page_)) { console.error('build it first: make'); process.exit(1); }
 const url = pathToFileURL(page_).href;
 let failures = 0;
@@ -21,6 +21,23 @@ const check = (name, ok, detail = '') => {
 // default location. Normally unset - `npx playwright install` is enough.
 const EXE = { chromium: process.env.PLAYWRIGHT_CHROMIUM_PATH,
               webkit:   process.env.PLAYWRIGHT_WEBKIT_PATH };
+
+// Churches whose hours the data can read. Overture carries no opening_hours, so
+// a Detroit build from it ships none; the page's logic is still tested, on one
+// fixture church with the Pantheon's hours (Mo-Sa 08:30-19:15; Su 09:00-17:45,
+// as tests/validate.py parses them) placed at Campus Martius. Real ones are
+// used whenever the data has them.
+const CHURCH = `(() => {
+  const o = window.ombra, H = o.head;
+  let i = H.ch.findIndex(c => c[0] === 'Fixture church');
+  if (i < 0) {
+    const e = o.searchDest('Campus Martius')[0], [x, y] = o.entryXY(e);
+    H.ch.push(['Fixture church', Math.round((x - H.ox) / H.qs), Math.round((y - H.oy) / H.qs),
+               [[4095, 63, [510, 1155]], [4095, 64, [540, 1065]]]]);
+    i = H.ch.length - 1;
+  }
+  return i;
+})()`;
 
 async function run(engine, label, breakStreams, which) {
   const exe = EXE[which];
@@ -59,9 +76,9 @@ async function run(engine, label, breakStreams, which) {
         for (let i = 0; i < H.nseg; i++) if (D.name[i] === ni) { s += D.shade[i * H.nframe + base + (h - 6) * 2]; n++; }
         return n ? +(s / n).toFixed(1) : null;
       };
-      return { fori: at('Via dei Fori Imperiali', 14), trilussa: at('Piazza Trilussa', 18) };
+      return { bagley: at('Bagley Street', 14), monroe: at('Monroe Street', 18) };
     });
-    check('Fori Imperiali unshaded at 14:00', d.fori === 0, `${d.fori}%`);
+    check('Bagley Street unshaded at 14:00', d.bagley === 0, `${d.bagley}%`);
     // Shade is unpacked one date at a time, so a date can be missing or land in
     // the wrong frames without the named streets noticing. The build ships the
     // city mean of every frame; unpack every date and recompute it from D.shade.
@@ -86,10 +103,10 @@ async function run(engine, label, breakStreams, which) {
       const o = window.ombra, H = o.head;
       let del = 0, daz = 0, tz = 0;
       for (const m of H.frames) {
-        const [el, az] = o.solarPos(2026, m.mo, m.d, m.h, m.mi, 41.8965, 12.48, m.tz);
+        const [el, az] = o.solarPos(2026, m.mo, m.d, m.h, m.mi, H.proj.lat0, H.proj.lon0, m.tz);
         del = Math.max(del, Math.abs(el - m.el));
         daz = Math.max(daz, m.el > 0 ? Math.abs(((az - m.az + 540) % 360) - 180) : 0);
-        if (o.romeTZ(2026, m.mo, m.d) !== m.tz) tz++;
+        if (o.cityTZ(2026, m.mo, m.d) !== m.tz) tz++;
       }
       return { del: +del.toFixed(4), daz: +daz.toFixed(4), tz };
     });
@@ -111,20 +128,20 @@ async function run(engine, label, breakStreams, which) {
     });
     check('a day between samples gets a frame with the sun where it really is', oct.now < 2 && oct.was > 10,
           `23 Oct 14:00 -> ${oct.from}, ${oct.now} deg off; nearest date was ${oct.was} deg off`);
-    check('Piazza Trilussa shaded at 18:00', d.trilussa > 85, `${d.trilussa}%`);
+    check("Monroe Street in the towers' shadow at 18:00", d.monroe > 80, `${d.monroe}%`);
     // street lookup and routing
-    await p.fill('#search', 'Via Giulia'); await p.press('#search', 'Enter');
+    await p.fill('#search', 'Griswold Street'); await p.press('#search', 'Enter');
     await p.waitForTimeout(500);
-    check('street search', (await p.textContent('#cName')) === 'Via Giulia');
+    check('street search', (await p.textContent('#cName')) === 'Griswold Street');
     // The field used to match only on Enter, on the first substring it found in
-    // map order. Rome has hundreds of streets that start the same way.
-    await p.fill('#search', 'Via dei Co'); await p.waitForTimeout(250);
+    // map order. Several of Detroit's streets share a word.
+    await p.fill('#search', 'Grand'); await p.waitForTimeout(250);
     const sug = await p.evaluate(() => [...document.querySelectorAll('#sugg .sg')]
       .map(b => b.textContent.trim()));
     check('typing suggests streets', sug.length > 1 && sug.length <= 8,
           sug.slice(0, 3).join(' | '));
     check('and every one of them matches what was typed',
-          sug.every(n => n.toLowerCase().includes('via dei co')));
+          sug.every(n => n.toLowerCase().includes('grand')));
     await p.press('#search', 'ArrowDown'); await p.press('#search', 'ArrowDown');
     const picked = await p.evaluate(() =>
       document.querySelector('#sugg .sg[aria-selected="true"]').textContent.trim());
@@ -133,14 +150,14 @@ async function run(engine, label, breakStreams, which) {
           (await p.textContent('#cName')) === picked, picked);
     check('and the list closes behind it',
           await p.evaluate(() => document.querySelector('#sugg').hidden));
-    await p.fill('#search', 'Via dei Co'); await p.waitForTimeout(250);
+    await p.fill('#search', 'Grand'); await p.waitForTimeout(250);
     await p.press('#search', 'Escape'); await p.waitForTimeout(150);
     check('Escape dismisses the suggestions',
           await p.evaluate(() => document.querySelector('#sugg').hidden));
-    await p.fill('#search', 'Margutta'); await p.waitForTimeout(250);
+    await p.fill('#search', 'Shelby'); await p.waitForTimeout(250);
     await p.click('#sugg .sg'); await p.waitForTimeout(400);
     check('and tapping one works on a phone',
-          /Margutta/.test(await p.textContent('#cName')),
+          /Shelby/.test(await p.textContent('#cName')),
           await p.textContent('#cName'));
     await p.click('#cClose'); await p.waitForTimeout(200);
     // The console was 49% of a phone screen. The date grid folds away, and the
@@ -227,7 +244,7 @@ async function run(engine, label, breakStreams, which) {
           px > 1.15 && Math.abs(px - line) < 1e-6, `${px.toFixed(3)} vs ${line.toFixed(3)}`);
     // a stray tap selects a street; Escape has to put it away again
     await p.click('#btnZfit'); await p.waitForTimeout(150);
-    await p.fill('#search', 'Via Giulia'); await p.press('#search', 'Enter');
+    await p.fill('#search', 'Griswold Street'); await p.press('#search', 'Enter');
     await p.waitForTimeout(400);
     await p.evaluate(() => document.activeElement.blur());
     await p.keyboard.press('Escape'); await p.waitForTimeout(200);
@@ -276,15 +293,15 @@ async function run(engine, label, breakStreams, which) {
     check('the console steps aside to pay for it', pick.consoleGone);
     check('the zoom controls stay above the sheet', pick.zoom);
     // A and B are fields: typing filters the list under whichever has the cursor
-    await p.fill('#rFromI', 'Pantheon'); await p.waitForTimeout(250);
+    await p.fill('#rFromI', 'Campus Martius'); await p.waitForTimeout(250);
     const typed = await p.evaluate(() =>
       [...document.querySelectorAll('#rResults .res')].map(b => b.textContent));
     check('typing in the start field filters the list',
-          typed.length > 0 && typed.every(t => /pantheon/i.test(t)),
+          typed.length > 0 && typed.every(t => /campus martius/i.test(t)),
           `${typed.length} matches`);
     await p.press('#rFromI', 'Enter'); await p.waitForTimeout(400);
     check('Enter takes the top match, and the field keeps it',
-          await p.inputValue('#rFromI') === 'Pantheon',
+          await p.inputValue('#rFromI') === 'Campus Martius Park',
           await p.inputValue('#rFromI'));
     // answering "where are you now?" should ask "where are you going?" by itself
     check('picking the start moves straight on to the destination',
@@ -308,10 +325,10 @@ async function run(engine, label, breakStreams, which) {
     check('tapping the open end again leaves map-pick for the list',
           await p.evaluate(() => !window.ombra.st.mapPick &&
             document.querySelectorAll('#rResults .res').length > 0));
-    await p.locator('.res', { hasText: 'Colosseo' }).first().click();
+    await p.locator('.res', { hasText: 'Eastern Market' }).first().click();
     await p.waitForTimeout(600);
     const km = await p.textContent('#rTitle');
-    check('routes Pantheon to Colosseo', /km/.test(km), km);
+    check('routes Campus Martius to Eastern Market', /mi|ft/.test(km), km);
     check('shows the shortest-route comparison',
           /Shortest way/.test(await p.textContent('#rCompare')));
     // With the console hidden behind the route panel this strip is the only
@@ -369,17 +386,19 @@ async function run(engine, label, breakStreams, which) {
     check('every shade percentage stays legible on the card, both themes',
           w1 >= 4.5 && w2 >= 4.5, `worst ${w1} and ${w2}`);
 
-    // metric and imperial, and the button says which you are looking at
+    // imperial by default in Detroit, metric a tap away, and the button says
+    // which you are looking at
     const dist = () => p.evaluate(() => document.querySelector('#rTitle').textContent);
-    const inKm = await dist();
-    await p.click('#btnUnits'); await p.waitForTimeout(300);
     const inMi = await dist();
-    check('distances switch between km and miles',
-          / km · /.test(inKm) && / mi · /.test(inMi) &&
-          await p.evaluate(() => document.querySelector('#btnUnits').textContent) === 'mi',
-          `${inKm}  ->  ${inMi}`);
+    const btn0 = await p.evaluate(() => document.querySelector('#btnUnits').textContent);
     await p.click('#btnUnits'); await p.waitForTimeout(300);
-    check('and switch back', await dist() === inKm);
+    const inKm = await dist();
+    check('distances default to miles, and switch to km',
+          / mi · /.test(inMi) && btn0 === 'mi' && / km · /.test(inKm) &&
+          await p.evaluate(() => document.querySelector('#btnUnits').textContent) === 'km',
+          `${inMi}  ->  ${inKm}`);
+    await p.click('#btnUnits'); await p.waitForTimeout(300);
+    check('and switch back', await dist() === inMi);
 
     // must alternate, not recompute from the system each time - when storage is
     // blocked that bug makes the toggle stick on one theme for ever
@@ -390,34 +409,51 @@ async function run(engine, label, breakStreams, which) {
     await p.click('#btnTheme'); await p.waitForTimeout(250); const t2 = await gnd();
     check('theme toggle alternates', t0 !== t1 && t1 !== t2 && t0 === t2, `${t0} ${t1} ${t2}`);
     // the phone route panel fills the upper map, so the zoom stack steps aside
-    // Nasoni: counted along the route, and the line only speaks when it has
-    // something to act on, because it costs a line of card and the card costs map
-    const naso = await p.evaluate(() => {
-      const o = window.ombra, n = o.st.route.naso;
-      return { all: o.head.nnaso, on: n.n, gap: Math.round(n.gap),
-               line: document.querySelector('#rNaso').textContent.trim(),
-               legend: document.querySelector('#legend').classList.contains('naso') };
-    });
-    check('the payload carries the fountains', naso.all > 300, `${naso.all} nasoni`);
-    // a projection or quantisation slip would put them in the Tyrrhenian Sea
-    check('and puts them inside the map', await p.evaluate(() => {
-      const o = window.ombra, d = o.data, bb = o.head.bbox;
-      for (let i = 0; i < d.naX.length; i++)
-        if (d.naX[i] < bb.x0 || d.naX[i] > bb.x1 ||
-            d.naY[i] < bb.y0 || d.naY[i] > bb.y1) return false;
-      return d.naX.length === o.head.nnaso;
-    }));
-    check('and picks out the ones along a route',
-          naso.on > 0 && naso.on < naso.all, `${naso.on} on the way, driest ${naso.gap} m`);
-    check('the dry-stretch line speaks only when the stretch is long',
-          naso.gap >= 400 ? /dry stretch/.test(naso.line) : naso.line === '',
-          naso.line || '(silent, as it should be)');
-    check('the legend explains them while they are on the map', naso.legend);
+    // Drinking fountains are a per-city switch (city.FOUNTAINS). Off, the
+    // payload carries none and nothing on the page may mention water.
+    const FOUNT = await p.evaluate(() => !!window.ombra.data.naX);
+    if (FOUNT) {
+      // Nasoni: counted along the route, and the line only speaks when it has
+      // something to act on, because it costs a line of card and the card costs map
+      const naso = await p.evaluate(() => {
+        const o = window.ombra, n = o.st.route.naso;
+        return { all: o.head.nnaso, on: n.n, gap: Math.round(n.gap),
+                 line: document.querySelector('#rNaso').textContent.trim(),
+                 legend: document.querySelector('#legend').classList.contains('naso') };
+      });
+      check('the payload carries the fountains', naso.all > 10, `${naso.all} fountains`);
+      // a projection or quantisation slip would put them in the Tyrrhenian Sea
+      check('and puts them inside the map', await p.evaluate(() => {
+        const o = window.ombra, d = o.data, bb = o.head.bbox;
+        for (let i = 0; i < d.naX.length; i++)
+          if (d.naX[i] < bb.x0 || d.naX[i] > bb.x1 ||
+              d.naY[i] < bb.y0 || d.naY[i] > bb.y1) return false;
+        return d.naX.length === o.head.nnaso;
+      }));
+      // Detroit has 14 mapped fountains, so most walks pass none: the line has to
+      // say that plainly, and otherwise speak only when the dry stretch is long
+      check('and picks out the ones along a route',
+            naso.on >= 0 && naso.on < naso.all, `${naso.on} on the way, driest ${naso.gap} m`);
+      check('the dry-stretch line says when there is no water, and is otherwise quiet unless the stretch is long',
+            naso.on === 0 ? /^No drinking fountain on this walk/.test(naso.line)
+                          : naso.gap >= 400 ? /dry stretch/.test(naso.line) : naso.line === '',
+            naso.line || '(silent, as it should be)');
+      check('the legend explains them while they are on the map', naso.legend);
+    } else {
+      const dry = await p.evaluate(() => ({ n: window.ombra.head.nnaso, route: window.ombra.st.route.naso,
+        line: document.querySelector('#rNaso').textContent.trim(), hidden: document.querySelector('#rNaso').hidden,
+        via: !!document.querySelector('#rVia'), legend: document.querySelector('#legend').classList.contains('naso') }));
+      check('fountains are off for this city: none in the payload, none on a walk',
+            dry.n === 0 && dry.route === null, `${dry.n} fountains`);
+      check('and the card says nothing about water, and offers no water stop',
+            dry.line === '' && dry.hidden && !dry.via && !dry.legend, dry.line || '(silent)');
+    }
     // Churches: only those whose hours were readable, open or not for the day
-    // and hour on the clock. The Pantheon's are Mo-Sa 08:30-19:15; Su 09:00-17:45.
-    const ch = await p.evaluate(() => {
+    // and hour on the clock.
+    const ch = await p.evaluate((CHURCH) => {
       const o = window.ombra, H = o.head, st = o.st;
-      const i = H.ch.findIndex(c => /^Pantheon$/.test(c[0]) || /Santa Maria ad Martyres/.test(c[0]));
+      const real = H.ch.length;
+      const i = eval(CHURCH);
       const keep = { today: st.today, live: st.live };
       // a Sunday and a Tuesday in October of whatever year the clock says
       const y = new Date().getFullYear();
@@ -428,64 +464,72 @@ async function run(engine, label, breakStreams, which) {
       st.today = { mo: 9, d: sunD + 2 };
       const tue18 = o.churchStatus(i, 18 * 60), tue20 = o.churchStatus(i, 20 * 60);
       Object.assign(st, keep);
-      return { n: H.ch.length, all: H.nchurch, name: i >= 0 ? H.ch[i][0] : null,
+      return { n: real, all: H.nchurch, name: i >= 0 ? H.ch[i][0] : null,
                sun18, sun10, tue18, tue20 };
-    });
-    check('only churches with readable hours ride along', ch.n > 40 && ch.n < ch.all,
-          `${ch.n} of ${ch.all}`);
+    }, CHURCH);
+    check('only churches with readable hours ride along', ch.n < ch.all,
+          `${ch.n} of ${ch.all}${ch.n ? '' : ' (none readable in this data: fixture church used)'}`);
     check('and each is open or closed for the day and hour on the clock',
             ch.name && !ch.sun18.open && ch.sun10.open && ch.sun10.until === 17 * 60 + 45 &&
             ch.tue18.open && ch.tue18.until === 19 * 60 + 15 && !ch.tue20.open && ch.tue20.from === null,
             `${ch.name}: Sun 18:00 ${ch.sun18.open ? 'open' : 'closed'}, Tue 18:00 open until ${ch.tue18.until / 60 | 0}:${String(ch.tue18.until % 60).padStart(2, '0')}`);
 
 
-    // Via a nasone: a dry walk offers the stop, and taking it bends the walk
-    // through a fountain without breaking it into pieces
-    const keep = await p.evaluate(() => {
-      const o = window.ombra, st = o.st, H = o.head, keep = { a: st.a, b: st.b };
-      const [ax, ay] = o.nodeXY(st.a);
-      for (let n = 0; n < H.nnode; n += 37) {
-        if (o.comp(n) !== o.bigc()) continue;
-        const [x, y] = o.nodeXY(n), d = Math.hypot(x - ax, y - ay);
-        if (d < 1200 || d > 2500) continue;
-        st.b = n; o.recompute();
-        const na = st.route && st.route.naso;
-        if (na && (na.n === 0 || na.gap >= 400)) break;
-      }
-      o.renderRoute();
-      return keep;
-    });
-    const viaBtn = () => p.evaluate(() => {
-      const b = document.querySelector('#rVia'); return b ? b.textContent : null; });
-    check('a dry walk offers to route via a nasone', await viaBtn() === 'Route via one');
-    await p.click('#rVia'); await p.waitForTimeout(300);
-    const via = await p.evaluate(() => {
-      const o = window.ombra, r = o.st.route, D = o.data;
-      let joined = true;
-      for (let i = 1; i < r.edges.length; i++) {
-        const e0 = r.edges[i - 1], e1 = r.edges[i];
-        const s0 = [D.eU[e0], D.eV[e0]];
-        if (!s0.includes(D.eU[e1]) && !s0.includes(D.eV[e1])) joined = false;
-      }
-      return { via: r.via, on: r.via >= 0 && r.naso.idx.has(r.via), joined,
-               len: Math.round(r.len), direct: r.direct && Math.round(r.direct.len),
-               line: document.querySelector('#rNaso').textContent.trim(),
-               band: (() => {
-                 const s = document.querySelector('#stage').getBoundingClientRect();
-                 const c = document.querySelector('#rcard').getBoundingClientRect();
-                 return Math.round((c.top - s.top) / s.height * 100); })() };
-    });
-    check('and the walk then passes one', via.on, via.line);
-    check('as one connected walk, no longer than it has to be',
-          via.joined && via.len >= via.direct - 1, `${via.direct} m -> ${via.len} m`);
-    check('and the card still leaves the route most of the screen', via.band >= 50, `${via.band}% map`);
-    check('the stop can be taken back', await viaBtn() === 'Go direct');
-    await p.click('#rVia'); await p.waitForTimeout(300);
-    check('and taking it back restores the direct walk',
-          await p.evaluate(() => window.ombra.st.route.via === -1 && !window.ombra.st.via));
-    await p.evaluate(k => { const o = window.ombra; o.st.a = k.a; o.st.b = k.b;
-                            o.recompute(); o.renderRoute(); }, keep);
-
+    if (FOUNT) {
+      // Via a nasone: a dry walk offers the stop, and taking it bends the walk
+      // through a fountain without breaking it into pieces
+      const keep = await p.evaluate(() => {
+        const o = window.ombra, st = o.st, H = o.head, keep = { a: st.a, b: st.b };
+        const [ax, ay] = o.nodeXY(st.a);
+        for (let n = 0; n < H.nnode; n += 37) {
+          if (o.comp(n) !== o.bigc()) continue;
+          const [x, y] = o.nodeXY(n), d = Math.hypot(x - ax, y - ay);
+          if (d < 1200 || d > 2500) continue;
+          st.b = n; o.recompute();
+          const na = st.route && st.route.naso;
+          if (na && (na.n === 0 || na.gap >= 400)) break;
+        }
+        o.renderRoute();
+        return keep;
+      });
+      const viaBtn = () => p.evaluate(() => {
+        const b = document.querySelector('#rVia'); return b ? b.textContent : null; });
+      check('a dry walk offers to route via a nasone', await viaBtn() === 'Route via one');
+      await p.click('#rVia'); await p.waitForTimeout(300);
+      const via = await p.evaluate(() => {
+        const o = window.ombra, r = o.st.route, D = o.data;
+        let joined = true;
+        for (let i = 1; i < r.edges.length; i++) {
+          const e0 = r.edges[i - 1], e1 = r.edges[i];
+          const s0 = [D.eU[e0], D.eV[e0]];
+          if (!s0.includes(D.eU[e1]) && !s0.includes(D.eV[e1])) joined = false;
+        }
+        return { via: r.via, on: r.via >= 0 && r.naso.idx.has(r.via), joined,
+                 len: Math.round(r.len), direct: r.direct && Math.round(r.direct.len),
+                 line: document.querySelector('#rNaso').textContent.trim(),
+                 band: (() => {
+                   const s = document.querySelector('#stage').getBoundingClientRect();
+                   const c = document.querySelector('#rcard').getBoundingClientRect();
+                   return Math.round((c.top - s.top) / s.height * 100); })() };
+      });
+      check('and the walk then passes one', via.on, via.line);
+      check('as one connected walk, no longer than it has to be',
+            via.joined && via.len >= via.direct - 1, `${via.direct} m -> ${via.len} m`);
+      check('and the card still leaves the route most of the screen', via.band >= 50, `${via.band}% map`);
+      check('the stop can be taken back', await viaBtn() === 'Go direct');
+      await p.click('#rVia'); await p.waitForTimeout(300);
+      check('and taking it back restores the direct walk',
+            await p.evaluate(() => window.ombra.st.route.via === -1 && !window.ombra.st.via));
+      await p.evaluate(k => { const o = window.ombra; o.st.a = k.a; o.st.b = k.b;
+                              o.recompute(); o.renderRoute(); }, keep);
+    } else {
+      // without the water stop, the card on a plain walk must still leave the map most of the screen
+      const band0 = await p.evaluate(() => {
+        const s = document.querySelector('#stage').getBoundingClientRect();
+        const c = document.querySelector('#rcard').getBoundingClientRect();
+        return Math.round((c.top - s.top) / s.height * 100); });
+      check('and the card leaves the route most of the screen', band0 >= 50, `${band0}% map`);
+    }
     // Stops, chained in the order given: each leg routed at the hour it starts,
     // with the time you reach each one. A chosen stop leaves its field and lives
     // in the timeline, or two of them would take the card to three quarters of
@@ -505,7 +549,7 @@ async function run(engine, label, breakStreams, which) {
     await p.click('#rAdd'); await p.waitForTimeout(250);
     check('adding one asks where, in a field of its own',
           await p.evaluate(() => window.ombra.st.pick) === 's0' && (await chain()).fields === 1);
-    await p.locator('.res', { hasText: 'Fontana di Trevi' }).first().click();
+    await p.locator('.res', { hasText: 'Hart Plaza' }).first().click();
     await p.waitForTimeout(500);
     let c1 = await chain();
     check('the walk then calls at it, leg by leg',
@@ -515,7 +559,7 @@ async function run(engine, label, breakStreams, which) {
           c1.legs && c1.legs[0].a > c1.legs[0].d && Math.abs(c1.legs[1].d - (c1.legs[0].a + c1.stay)) < 0.01,
           c1.legs && c1.legs.map(g => `${Math.round(g.d)}-${Math.round(g.a)}`).join(', '));
     await p.click('#rAdd'); await p.waitForTimeout(250);
-    await p.locator('.res', { hasText: 'Piazza Navona' }).first().click();
+    await p.locator('.res', { hasText: 'Grand Circus Park' }).first().click();
     await p.waitForTimeout(500);
     const c2 = await chain();
     check('two stops still leave the map a good part of the screen', c2.legs.length === 3 && c2.band >= 40,
@@ -540,21 +584,21 @@ async function run(engine, label, breakStreams, which) {
     check('swapping the ends reverses the stops', await order() === before.split(' > ').reverse().join(' > '),
           await order());
     await p.click('#rSwap'); await p.waitForTimeout(300);
-    // a church as a stop says when it will be shut: the Pantheon closes 19:15
+    // a church as a stop says when it will be shut: the fixture closes 19:15
     // Monday to Saturday, so leaving at 19:30 on a Tuesday finds it shut
-    const shut = await p.evaluate(() => {
+    const shut = await p.evaluate((CHURCH) => {
       const o = window.ombra, st = o.st, H = o.head;
-      const i = H.ch.findIndex(c => /^Pantheon$/.test(c[0]) || /Santa Maria ad Martyres/.test(c[0]));
+      const i = eval(CHURCH);
       const keep = { today: st.today, live: st.live, ti: st.ti, stops: st.stops };
       const y = new Date().getFullYear(); let d = 1;
       while (new Date(y, 9, d).getDay() !== 2) d++;
       st.live = false; st.today = { mo: 9, d }; st.ti = 27;
       const n = o.nearestNode(H.ox + H.ch[i][1] * H.qs, H.oy + H.ch[i][2] * H.qs);
-      st.stops = [{ n, L: 'Pantheon' }]; o.recompute(); o.renderRoute();
+      st.stops = [{ n, L: H.ch[i][0] }]; o.recompute(); o.renderRoute();
       const t = document.querySelector('#rCompare').textContent;
       Object.assign(st, keep); o.recompute(); o.renderRoute();
       return t;
-    });
+    }, CHURCH);
     check('a church stop says when it will be shut', /shut when you arrive/.test(shut),
           shut.replace(/\s+/g, ' ').slice(0, 70));
     for (let k = 0; k < 2; k++) {
@@ -588,11 +632,11 @@ async function run(engine, label, breakStreams, which) {
           await p.evaluate(() => document.querySelector('#fresh').hidden));
     // the thing typing is for: streets are not on the 29-item shortlist
     await p.click('#rToI'); await p.waitForTimeout(200);
-    await p.fill('#rToI', 'Via Giulia'); await p.waitForTimeout(250);
+    await p.fill('#rToI', 'Griswold Street'); await p.waitForTimeout(250);
     await p.press('#rToI', 'Enter'); await p.waitForTimeout(600);
     check('a street can be a destination, which only typing can reach',
-          await p.inputValue('#rToI') === 'Via Giulia' &&
-          /km|m/.test(await p.textContent('#rTitle')),
+          await p.inputValue('#rToI') === 'Griswold Street' &&
+          /mi|ft|km|m/.test(await p.textContent('#rTitle')),
           `${await p.inputValue('#rToI')} - ${(await p.textContent('#rTitle')).trim()}`);
     // and an empty field offers the landmarks again rather than nothing
     await p.fill('#rToI', ''); await p.waitForTimeout(250);
@@ -600,14 +644,24 @@ async function run(engine, label, breakStreams, which) {
       document.querySelectorAll('#rResults .res').length >= 20));
 
     await p.click('#rClose'); await p.waitForTimeout(350);
-    // 460 taps over the whole city is not a map; they wait for the zoom
-    check('no fountains on the city-wide view', await p.evaluate(() =>
-      !document.querySelector('#legend').classList.contains('naso')));
-    await p.evaluate(() => { window.ombra.st.scale = 0.5; });
-    await p.click('#btnZin'); await p.waitForTimeout(300);
-    check('and fountains once you zoom in to a walk', await p.evaluate(() =>
-      document.querySelector('#legend').classList.contains('naso')));
-    await p.click('#btnZfit'); await p.waitForTimeout(300);
+    if (FOUNT) {
+      // fountains over the whole city are not a map; they wait for the zoom.
+      // The city view, not wherever the last route left the zoom.
+      await p.click('#btnZfit'); await p.waitForTimeout(300);
+      check('no fountains on the city-wide view', await p.evaluate(() =>
+        !document.querySelector('#legend').classList.contains('naso')));
+      await p.evaluate(() => { window.ombra.st.scale = 0.5; });
+      await p.click('#btnZin'); await p.waitForTimeout(300);
+      check('and fountains once you zoom in to a walk', await p.evaluate(() =>
+        document.querySelector('#legend').classList.contains('naso')));
+      await p.click('#btnZfit'); await p.waitForTimeout(300);
+    } else {
+      await p.evaluate(() => { window.ombra.st.scale = 0.5; });
+      await p.click('#btnZin'); await p.waitForTimeout(300);
+      check('and none appear zoomed in, nor a legend row for them', await p.evaluate(() =>
+        !document.querySelector('#legend').classList.contains('naso')));
+      await p.click('#btnZfit'); await p.waitForTimeout(300);
+    }
 
     check('closing the route hands the console back',
           await p.evaluate(() =>
@@ -701,7 +755,7 @@ async function installable(){
   // the manifest, and icons that are the sizes it claims
   const m = await (await fetch(base + 'manifest.webmanifest')).json();
   check('the manifest names the app and opens it standalone',
-        m.name === 'Ombra Roma' && m.display === 'standalone' && m.start_url === './',
+        m.name === 'Ombra Detroit' && m.display === 'standalone' && m.start_url === './',
         `${m.short_name}, ${m.display}`);
   const sizes = [];
   for (const ic of m.icons) {
@@ -721,7 +775,7 @@ async function installable(){
   check('and controls the page from the next one',
         await p.evaluate(() => !!navigator.serviceWorker.controller));
 
-  // a phone in a Roman courtyard with no signal
+  // a phone in a downtown parking structure with no signal
   await ctx.setOffline(true);
   await p.reload();
   check('it boots with no network at all', await booted());
@@ -751,12 +805,12 @@ async function hereAndNow(){
   const browser = await chromium.launch(EXE.chromium ? { executablePath: EXE.chromium } : {});
   const booted = p => p.waitForFunction(() => document.querySelector('#loading').style.display === 'none',
                                         { timeout: 45000 });
-  // where the Pantheon is, in degrees, from the page's own place list
+  // where Campus Martius is, in degrees, from the page's own place list
   let ctx = await browser.newContext({ ...devices['iPhone 13'] });
   let p = await ctx.newPage();
   await p.goto(url); await booted(p);
   const pan = await p.evaluate(() => {
-    const o = window.ombra, H = o.head, e = o.searchDest('Pantheon')[0], [x, y] = o.entryXY(e);
+    const o = window.ombra, H = o.head, e = o.searchDest('Campus Martius')[0], [x, y] = o.entryXY(e);
     return { lat: H.proj.lat0 + y / H.proj.mperlat, lon: H.proj.lon0 + x / H.proj.mperlon, x, y };
   });
   check('nothing asks for location at launch when it was never allowed', await p.evaluate(() =>
@@ -825,20 +879,20 @@ async function hereAndNow(){
   await p.click('#rClose'); await p.waitForTimeout(200);
 
   // a tap on a church says whether it is open, with the caveat
-  const tap = await p.evaluate(() => {
+  const tap = await p.evaluate((CHURCH) => {
     const o = window.ombra, H = o.head, st = o.st, s = document.querySelector('#stage');
-    const i = H.ch.findIndex(c => c[0] === 'Pantheon');
+    const i = eval(CHURCH);
     st.scale = 0.9; st.cx = H.ox + H.ch[i][1] * H.qs; st.cy = H.oy + H.ch[i][2] * H.qs;
     window.dispatchEvent(new Event('resize'));
     const r = s.getBoundingClientRect();
-    return [r.left + r.width / 2, r.top + r.height / 2];
-  });
+    return [r.left + r.width / 2, r.top + r.height / 2, H.ch[i][0]];
+  }, CHURCH);
   await p.waitForTimeout(400);
   await p.mouse.click(tap[0], tap[1]); await p.waitForTimeout(300);
   const said = await p.evaluate(() => { const t = document.querySelector('#toast');
     return t.hidden ? '' : t.textContent; });
   check('tapping a church says whether it is open, and where the hours come from',
-        /^Pantheon — (open|closed)/.test(said) && /OpenStreetMap/.test(said), said.slice(0, 60));
+        said.startsWith(tap[2] + ' — ') && /— (open|closed)/.test(said) && /OpenStreetMap/.test(said), said.slice(0, 60));
   await p.click('#btnZfit'); await p.waitForTimeout(150);
 
   // now: live until the clock is moved, and back on request
@@ -877,7 +931,7 @@ async function hereAndNow(){
                                    geolocation: { latitude: 48.8566, longitude: 2.3522 } });   // Paris
   p = await ctx.newPage();
   await p.goto(url); await booted(p); await p.waitForTimeout(1500);
-  check('far from Rome, it opens quietly on the map', await p.evaluate(() =>
+  check('far from the city, it opens quietly on the map', await p.evaluate(() =>
     document.querySelector('#toast').hidden && window.ombra.me.watch === null));
   await p.click('#btnLoc');
   const note = await p.waitForFunction(() => !document.querySelector('#toast').hidden, { timeout: 8000 })

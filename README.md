@@ -1,11 +1,15 @@
-# Ombra Roma
+# Ombra Detroit
 
-A street-by-street shade map of central Rome, and walking routes that prefer the
-shady side. One self-contained HTML file — no server, works offline.
+A street-by-street shade map of downtown Detroit, Midtown, Corktown and the
+riverfront, and walking routes that prefer the shady side. One self-contained
+HTML file — no server, works offline.
 
 Blue is shaded, red is open sun. Scrub the time and date; tap any street to
 see its whole day; give it two endpoints and it will trade a short detour for a
 lot less sun.
+
+A port of [Ombra Roma](https://github.com/ptrestler/ombra). The city lives in
+`city.py`; everything else is shared.
 
 ![](docs/preview.png)
 
@@ -15,26 +19,27 @@ lot less sun.
 pip install -r requirements.txt
 npm install
 npx playwright install chromium webkit    # both; make test needs WebKit too
-make            # ~10 min; the OSM and elevation data is already cached in data/
+make            # ~10 min; the map and elevation data is already cached in data/
 make test
-open dist/ombra-roma.html
+open dist/ombra-detroit.html
 ```
 
-`make distclean` also drops the cached downloads — only do that if you mean it,
-as re-fetching from public Overpass mirrors takes about an hour.
+`make fetch` refreshes the data and is the only step that needs the network.
+The map data comes from Overture Maps on S3 (`fetch_overture.py`, about a
+minute) or straight from OpenStreetMap (`fetch_osm.py`, an hour or more on
+public Overpass mirrors); `SOURCE` in `city.py` picks one.
 
 ## Open it
 
-**<https://ptrestler.github.io/ombra/>** — the live page, rebuilt and
+**<https://ptrestler.github.io/ombra-detroit/>** — the live page, rebuilt and
 redeployed by CI on every push to `main`. Works on a phone, and because it is a
 top-level page rather than an embedded frame it can use your location.
 
 ## Just give me the file
 
-**[Download the page](https://github.com/ptrestler/ombra/releases/download/build/ombra-roma.html)**
-— one self-contained 5.3 MB file, no build needed. Open it in any browser. It
-works offline and from a phone, and unlike the hosted copy it can use your
-location.
+**[Download the page](https://github.com/ptrestler/ombra-detroit/releases/download/build/ombra-detroit.html)**
+— one self-contained 4.6 MB file, no build needed. Open it in any browser. It
+works offline, and unlike the hosted copy it can use your location.
 
 That link is a release asset, rebuilt and replaced by CI on every push to
 `main`, so it is always the current build and the URL never changes.
@@ -46,22 +51,24 @@ above instead.
 
 ## What it actually computes
 
-Real building footprints from OpenStreetMap, heights from OSM tags and the
-Italian cadastre, real tree canopy, real terrain, and NOAA solar geometry. Rays
-are cast from both pavements of every street at 768 sun positions; the number
-you see assumes you walk on the shadier side. Rome's hills shadow each other, so
-Trastevere goes dark under the Janiculum in the early evening and the Tiber
-bridges lose the sun well before the open city does.
+Building footprints from OpenStreetMap, heights for 95 % of them from Esri
+Community Maps, USGS lidar, OSM tags and Microsoft's ML buildings (all via
+Overture Maps), the towers drawn from their mapped parts, real tree canopy,
+bare-earth terrain from USGS 3DEP, and NOAA solar geometry. Rays are cast from
+both sidewalks of every street at 768 sun positions; the number you see assumes
+you walk on the shadier side.
 
-Sanity check: at 2 pm on 15 August, Via dei Fori Imperiali is 0 % shaded and Via
-dei Coronari is 93 %. That is the right answer for both.
+Sanity check: at 2 pm on 15 August, Bagley Street in Corktown is 0 % shaded and
+Griswold Street in the Financial District is 89 % shaded at 10 am. That is the
+right answer for both.
 
 See `CLAUDE.md` for the pipeline, the measured accuracy, and the things that will
 bite you.
 
 ## Licence / attribution
 
-Map data © OpenStreetMap contributors, ODbL. Building heights also from
-[EUBUCCO](https://eubucco.com/) v0.2 (ODbL), whose Lazio rows come from the
-Italian cadastre. Elevation data courtesy of the USGS/NASA SRTM programme via
+Map data © OpenStreetMap contributors, ODbL, via the Overture Maps Foundation.
+Building heights from Esri Community Maps (CC BY 4.0), USGS 3DEP lidar and
+Microsoft ML Buildings (ODbL), as distributed by Overture. Places © Overture
+Maps Foundation. Elevation data courtesy of the USGS 3D Elevation Program via
 AWS Open Data.

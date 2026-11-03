@@ -2,7 +2,7 @@ import json, math, numpy as np, collections
 from paths import osm, dem, build, web, dist
 from geo import to_xy
 
-S,W,N,E = 41.878, 12.4500, 41.9150, 12.5100
+from city import S, W, N, E
 bx0,by0 = to_xy(W,S); bx1,by1 = to_xy(E,N)
 
 segs = json.load(open(build("segments.json")))
@@ -14,6 +14,7 @@ for i,s in enumerate(segs):
         keep.append(i); XY.append(list(zip(xs.tolist(),ys.tolist())))
 segs=[segs[i] for i in keep]
 print("segments in bbox:", len(segs))
+assert len(segs) < 65536, "eSeg is uint16 here and in the page: widen both"
 
 # a vertex shared by two or more segments (or any segment end) becomes a graph node
 K = lambda p: (round(p[0]*20), round(p[1]*20))

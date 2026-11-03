@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from paths import build
 from solar import solar_pos
 from geo import to_xy
+import city
 
 # These checks read build/. On a fresh clone it is empty, so fail with the same
 # message smoke.mjs gives rather than an opaque FileNotFoundError.
@@ -17,7 +18,7 @@ if _missing:
     print("  missing from build/: " + ", ".join(_missing), file=sys.stderr)
     sys.exit(1)
 
-LAT, LON = 41.9028, 12.4964
+LAT, LON = city.LAT0, city.LON0
 fails = []
 def check(name, ok, detail=""):
     print(f"  {'PASS' if ok else 'FAIL'}  {name}{('  ' + detail) if detail else ''}")
@@ -26,7 +27,7 @@ def check(name, ok, detail=""):
 print("\nsolar position")
 # max elevation at solar noon must equal 90 - latitude +/- declination
 for mo, day, dec, label in [(6,21,23.44,"summer solstice"), (12,21,-23.44,"winter solstice")]:
-    tz = 2 if mo == 6 else 1
+    tz = city.tz_for(2026, mo, day)
     best = max(solar_pos(2026,mo,day,h,m,LAT,LON,tz)[0]
                for h in range(9,17) for m in (0,15,30,45))
     expect = 90 - LAT + dec
@@ -41,34 +42,40 @@ def crossing(mo, d, tz, rising):
         else: hi = m
     m = (lo+hi)/2
     return f"{int(m):02d}:{int(round((m-int(m))*60)):02d}"
-for mo,d,tz,rise,setq,label in [(6,21,2,"05:35","20:49","Jun 21"),
-                                (12,21,1,"07:34","16:42","Dec 21"),
-                                (3,20,1,"06:12","18:20","Mar 20")]:
+# published Detroit times, local clock: the solstices agree across
+# sunrise-sunset.org and its peers; 20 March is sunrisesunsettime.org's
+for mo,d,tz,rise,setq,label in [(6,21,-4,"05:56","21:13","Jun 21"),
+                                (12,21,-5,"07:58","17:03","Dec 21"),
+                                (3,20,-4,"07:36","19:45","Mar 20")]:
     got = (crossing(mo,d,tz,True), crossing(mo,d,tz,False))
     def mins(t): h,m = t.split(":"); return int(h)*60+int(m)
     ok = abs(mins(got[0])-mins(rise)) <= 4 and abs(mins(got[1])-mins(setq)) <= 4
     check(f"{label} sunrise/sunset", ok, f"{got[0]}/{got[1]} vs {rise}/{setq}")
 
-print("\ndaylight saving (EU: last Sunday of March to last Sunday of October)")
-def last_sunday(y, m):
-    d = calendar.monthrange(y, m)[1]
-    while calendar.weekday(y, m, d) != 6: d -= 1
-    return d
-check("2026 DST window", (last_sunday(2026,3), last_sunday(2026,10)) == (29, 25),
-      f"Mar {last_sunday(2026,3)} - Oct {last_sunday(2026,10)}")
+print("\ndaylight saving (US: second Sunday of March to first Sunday of November)")
+check("2026 DST window", city.dst_window(2026) == ((3, 8), (11, 1)),
+      f"{city.dst_window(2026)}")
+check("2027 DST window", city.dst_window(2027) == ((3, 14), (11, 7)),
+      f"{city.dst_window(2027)}")
 meta = json.load(open(build("frames_meta.json")))
 tz = {(f["mo"], f["d"]): f["tz"] for f in meta}
-check("March 15 is CET (+1), not CEST", tz[(3,15)] == 1, f"tz=+{tz[(3,15)]}")
-check("October 15 is CEST (+2)", tz[(10,15)] == 2, f"tz=+{tz[(10,15)]}")
+check("March 1 is EST (-5)", tz[(3,1)] == -5, f"tz={tz[(3,1)]}")
+check("March 15 is EDT (-4), a week after the change", tz[(3,15)] == -4, f"tz={tz[(3,15)]}")
+check("November 1 is EST (-5): 2026 changes back that morning", tz[(11,1)] == -5, f"tz={tz[(11,1)]}")
+check("October 15 is EDT (-4)", tz[(10,15)] == -4, f"tz={tz[(10,15)]}")
 
 print("\nterrain")
 gm = json.load(open(build("ground_meta.json")))
-check("relief beats the flat-earth model", gm["relief_rmse_m"] < gm["flat_rmse_m"] / 3,
-      f"{gm['relief_rmse_m']} m vs {gm['flat_rmse_m']} m flat")
+if "relief_rmse_m" in gm:
+    check("relief beats the flat-earth model", gm["relief_rmse_m"] < gm["flat_rmse_m"] / 3,
+          f"{gm['relief_rmse_m']} m vs {gm['flat_rmse_m']} m flat")
+# bare earth: a tower must not stand on a copy of itself
+check("the ground under the tallest towers is bare earth", abs(gm.get("tower_bump_m", 99)) < 2.0,
+      f"{gm.get('tower_bump_m')} m under {gm.get('tower_n')} buildings, median {gm.get('tower_median_h')} m tall")
 
 print("\nshade, 15 August (street names are stable OSM data)")
 F = np.load(build("frames.npy")); segs = json.load(open(build("segments.json")))
-S,W,N,E = 41.878, 12.45, 41.915, 12.51
+S,W,N,E = city.S, city.W, city.N, city.E
 bx0,by0 = to_xy(W,S); bx1,by1 = to_xy(E,N)
 keep = []
 for i, s in enumerate(segs):
@@ -83,18 +90,19 @@ def shade(name, hour, day=15, mo=8):
     if not ids: return None
     di = (mo-1)*2 + (1 if day == 15 else 0)
     return float(F[di*32 + (hour-6)*2, ids].mean())
-# wide open boulevards vs narrow lanes - these are qualitative facts about Rome
-for name, hour, lo, hi in [("Via dei Fori Imperiali", 14, 0, 8),
-                           ("Viale delle Terme di Caracalla", 14, 10, 45),
-                           ("Via dei Coronari", 14, 80, 100),
-                           ("Via Margutta", 14, 85, 100),
-                           ("Via Giulia", 14, 70, 100)]:
+# low wide streets vs the downtown canyons - qualitative facts about Detroit
+for name, hour, lo, hi in [("Bagley Street", 14, 0, 8),            # Corktown/Mexicantown, two storeys
+                           ("Michigan Avenue", 14, 0, 20),         # wide, low, west of downtown
+                           ("Grand River Avenue", 14, 0, 20),
+                           ("Griswold Street", 10, 75, 100),       # Financial District canyon
+                           ("Shelby Street", 10, 70, 100),
+                           ("Broadway Street", 18, 80, 100)]:
     v = shade(name, hour)
     check(f"{name} at {hour}:00", v is not None and lo <= v <= hi,
           f"{v:.0f}%" if v is not None else "missing")
-# terrain-driven: Piazza Trilussa sits under the Janiculum
-v = shade("Piazza Trilussa", 18)
-check("Piazza Trilussa shaded by the Janiculum at 18:00", v is not None and v > 85,
+# tower-driven: Greektown's Monroe Street sits east of the downtown towers
+v = shade("Monroe Street", 18)
+check("Monroe Street in the towers' shadow at 18:00", v is not None and v > 80,
       f"{v:.0f}%" if v is not None else "missing")
 
 print("\nrouting graph")

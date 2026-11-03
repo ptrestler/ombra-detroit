@@ -2,11 +2,15 @@ import json, glob, math, numpy as np, gzip, struct, base64
 from paths import osm, dem, build, web, dist
 from geo import to_xy
 
-QS=0.5; OX=-3400.0; OY=-2900.0
-S,W,N,E = 41.878, 12.4500, 41.9150, 12.5100
+import city
+from city import S, W, N, E
 bx0,by0=to_xy(W,S); bx1,by1=to_xy(E,N)
+# Quantisation origin: the bbox corner less a margin, because outlines that
+# cross the edge (a river, a park) keep their outside vertices. 0.5 m steps in a
+# uint16 reach 32 km, far more than any bbox here; clip rather than wrap.
+QS=0.5; OX=float(math.floor(bx0-900)); OY=float(math.floor(by0-900))
 
-def q(v,o): return np.round((np.asarray(v)-o)/QS).astype("<u2")
+def q(v,o): return np.clip(np.round((np.asarray(v)-o)/QS),0,65535).astype("<u2")
 
 def rdp(pts,eps):
     if len(pts)<3: return pts
@@ -136,9 +140,14 @@ for el in NASO:
     x, y = to_xy(lon, lat)
     if not (bx0 <= x <= bx1 and by0 <= y <= by1): continue
     nax.append(float(x)); nay.append(float(y))
-add("nax", q(np.array(nax), OX).tobytes(), "u2", len(nax))
-add("nay", q(np.array(nay), OY).tobytes(), "u2", len(nay))
-print("nasoni packed:", len(nax), "of", len(NASO), "fetched")
+if city.FOUNTAINS:
+    add("nax", q(np.array(nax), OX).tobytes(), "u2", len(nax))
+    add("nay", q(np.array(nay), OY).tobytes(), "u2", len(nay))
+    print("nasoni packed:", len(nax), "of", len(NASO), "fetched")
+else:
+    # no sections at all: every fountain path in the page keys on D.naX
+    nax, nay = [], []
+    print("fountains: off for this city (city.FOUNTAINS)")
 
 # --- churches with opening hours ------------------------------------------------
 # Cool refuges, and only where the page can say whether they are open: a church
@@ -177,6 +186,9 @@ add("eU",  G["eU"].tobytes(),  "u4",len(G["eU"]))
 add("eV",  G["eV"].tobytes(),  "u4",len(G["eV"]))
 add("eLen",G["eLen"].tobytes(),"u2",len(G["eLen"]))
 NNODE=int(G["nnode"][0]); NEDGE=len(G["eSeg"])
+NETKM=round(float(G["eLen"].astype(np.float64).sum())/10/1000,1)
+_c=G["comp"]; _live=np.zeros(NNODE,bool); _live[G["eU"]]=True; _live[G["eV"]]=True
+BIGPCT=round(100*float((_c[_live]==G["big"][0]).mean()),1)
 print("graph packed: nodes",NNODE,"edges",NEDGE)
 
 gj=json.load(open(build("grid.json")))
@@ -188,11 +200,16 @@ pl=[[p["n"], CATS.index(p["c"]),
 print("places packed:", len(pl), "cats", CATS)
 head=dict(sections=hdr, nbld=gj.get("nbld"), nknown=gj.get("nknown"),
           ncad=gj.get("ncadastre"), nnaso=len(nax), ch=CH, nchurch=NCHURCH,
-          nnode=NNODE, nedge=NEDGE, ndate=NDATE, slots=SLOTS, city=CITY, pl=pl, cats=CATS, top=PP["top"], qs=QS, ox=OX, oy=OY, nseg=len(segs), nframe=T.shape[1],
+          nnode=NNODE, nedge=NEDGE, netkm=NETKM, bigpct=BIGPCT, ntree=gj.get("ntree"), nrow=gj.get("nrow"), hsrc=gj.get("hsrc"), source=city.SOURCE,
+          relief=json.load(open(build("ground_meta.json"))).get("relief_p5_p95_m"), ndate=NDATE, slots=SLOTS, city=CITY, pl=pl, cats=CATS, top=PP["top"], qs=QS, ox=OX, oy=OY, nseg=len(segs), nframe=T.shape[1],
           kinds=KINDS, names=names, frames=meta,
           bbox=dict(x0=float(bx0),y0=float(by0),x1=float(bx1),y1=float(by1)),
-          proj=dict(lat0=41.8965, lon0=12.4800, mperlat=111132.0,
-                    mperlon=111320.0*math.cos(math.radians(41.8965))))
+          proj=dict(lat0=city.LAT0, lon0=city.LON0, mperlat=111132.0,
+                    mperlon=111320.0*math.cos(math.radians(city.LAT0))),
+          # who the page is for, and its clock: the template reads both from here
+          place=dict(name=city.NAME, city=city.CITY, tzname=city.TZ_NAME,
+                     std=city.TZ_STD, dst=city.TZ_DST, rule=city.DST_RULE),
+          labels=PP.get("labels", []))
 hb=json.dumps(head,ensure_ascii=False,separators=(",",":")).encode()
 blob=struct.pack("<I",len(hb))+hb+b"".join(parts)
 gz=gzip.compress(blob,9)

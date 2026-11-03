@@ -86,5 +86,5 @@ def row(name, es):
 print(f"\n{len(tests)} unsampled dates, {sum(len(v) for v in err['nearest'][:1]) and len(err['nearest'])} "
       f"daylight frames x {F.shape[1]} segments")
 for k in err: print(row(k, err[k]))
-print("\nthe dates whose brackets straddle a clock change (late March, late October)")
+print("\nthe dates whose brackets straddle a clock change (city.dst_window: Detroit, early March and late October)")
 for k in dst: print(row(k, dst[k]))

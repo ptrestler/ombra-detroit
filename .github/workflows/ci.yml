@@ -1,8 +1,8 @@
 # Browser tests cannot run on a Windows machine with Smart App Control enforced:
 # it blocks Playwright's unsigned WebKit DLLs and the process dies at init with
 # 0xC0000142. Linux runners have no such restriction, so CI is the reliable place
-# to run `make test`. The OSM and elevation caches are committed, so the build
-# needs no network fetch.
+# to run `make test`. The map data (data/overture/ or data/osm/, per city.py)
+# and the elevation tiles are committed, so the build needs no network fetch.
 name: build and test
 
 on:
@@ -55,18 +55,66 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ombra-roma-html
+          name: ombra-detroit-html
           # version.txt travels with the page: the deployed copy polls it to
           # notice when a browser is holding a cached build. The manifest, the
           # service worker and the icons are what make the Pages copy installable.
           path: |
-            dist/ombra-roma.html
+            dist/ombra-detroit.html
             dist/version.txt
             dist/manifest.webmanifest
             dist/sw.js
             dist/icons/
           if-no-files-found: warn
 
-  # The release and Pages deploy jobs that ombra runs here are left out until
-  # this repository builds Detroit: until then they would publish Rome under
-  # Detroit's name.
+      # The page is 4.6 MB of base64 over gzip, so it barely compresses and git
+      # cannot delta it: committing each rebuild grew the repo by that much every
+      # time. A release asset lives outside the history, so the download is always
+      # the newest build and costs the repository nothing. One fixed tag, replaced
+      # in place, so the URL never changes:
+      #   https://github.com/ptrestler/ombra-detroit/releases/download/build/ombra-detroit.html
+      - name: Publish it as the downloadable build
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view build >/dev/null 2>&1 || gh release create build             --title "Latest build"             --notes "The current standalone page, rebuilt on every push to main. One self-contained file: download it and open it in any browser. Works offline, and unlike the hosted artifact it can use your location."
+          gh release upload build dist/ombra-detroit.html --clobber
+
+  # The page on a URL anyone can open. This is the copy to send people: it is a
+  # top-level HTTPS document rather than a cross-origin iframe, so unlike the
+  # hosted artifact it can use the visitor's location. Deployed from the build,
+  # never committed, so it costs the repository nothing.
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ombra-detroit-html
+          path: site
+
+      # Pages serves index.html at the directory root; the build has one name.
+      # version.txt sits beside it, already written by the build.
+      - run: |
+          mv site/ombra-detroit.html site/index.html
+          # without this the deployed page has nothing to poll, and a browser
+          # sitting on a cached copy goes unnoticed. Fail loudly instead.
+          test -s site/version.txt
+          cat site/version.txt
+          # the installable app: without these the page still works, but it
+          # cannot be installed or opened offline, and nothing would say so
+          test -s site/manifest.webmanifest
+          test -s site/sw.js
+          test -s site/icons/icon-512.png
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v5

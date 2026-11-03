@@ -11,11 +11,11 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { existsSync, statSync } from 'node:fs';
 
-const page_ = resolve(dirname(fileURLToPath(import.meta.url)), 'dist/ombra-roma.html');
+const page_ = resolve(dirname(fileURLToPath(import.meta.url)), 'dist/ombra-detroit.html');
 if (!existsSync(page_)) { console.error('build it first: make'); process.exit(1); }
 const exe = process.env.PLAYWRIGHT_CHROMIUM_PATH;
 const b = await chromium.launch(exe ? { executablePath: exe } : {});
-console.log(`dist/ombra-roma.html  ${(statSync(page_).size / 1e6).toFixed(2)} MB`);
+console.log(`dist/ombra-detroit.html  ${(statSync(page_).size / 1e6).toFixed(2)} MB`);
 for (const rate of [1, 4]) {
   const runs = [];
   for (let i = 0; i < 3; i++) {

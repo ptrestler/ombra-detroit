@@ -5,10 +5,11 @@
 import io, os
 from buildstamp import stamp
 from paths import build, web
+import city
 body = io.open(web("template.html"), encoding="utf-8").read()
 data = io.open(build("data.b64"), encoding="utf-8").read()
 assert "__DATA__" in body, "payload placeholder not found in template"
-out = body.replace("__DATA__", data)
+out = city.fill(body).replace("__DATA__", data)
 BUILD = stamp()
 assert "__BUILD__" in body, "build stamp placeholder not found"
 out = out.replace("__BUILD__", BUILD)
