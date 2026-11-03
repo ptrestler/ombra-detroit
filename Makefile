@@ -15,6 +15,7 @@ all: web
 ## (cached; safe to re-run). The only target that needs the network.
 fetch:
 	$(PY) -c "import city, runpy; runpy.run_path('fetch_' + city.SOURCE + '.py', run_name='__main__')"
+	$(PY) fetch_osm.py --addresses
 	$(PY) terrain.py
 
 ## rasters -- 2 m building/canopy grid, 10 m terrain grid
@@ -33,7 +34,7 @@ build/frames.npy: build/dsm.npy build/ground.npy shade.py solar.py streets.py ge
 
 ## web -- routing graph, destination list, payload, the standalone build
 web: dist/ombra-detroit.html
-build/data.b64: build/frames.npy graph.py places.py pack.py city.py $(MAPDATA)
+build/data.b64: build/frames.npy graph.py places.py pack.py city.py addresses.py data/osm/extra_addr.json $(MAPDATA)
 	$(PY) graph.py
 	$(PY) places.py
 	$(PY) pack.py

@@ -178,6 +178,23 @@ for el in json.load(open(osm("extra_poi.json")))["elements"]:
     if bx0 <= x <= bx1 and by0 <= y <= by1: NCHURCH += 1
 print("churches with readable hours packed:", len(CH), "of", NCHURCH)
 
+# --- street addresses -------------------------------------------------------------
+# From OSM whatever the map's source (see addresses.py). [street, lo, hi, qx, qy,
+# label]: a range covers lo..hi, a plain number has lo == hi. Kept in the header:
+# 2,500 rows are ~25 kB of gzip, and the page needs all of them to search.
+from addresses import load as load_addresses
+from paths import RAWOSM
+import os
+ADR = [a for a in load_addresses(os.path.join(RAWOSM, "extra_addr.json"))]
+AST = sorted({a[0] for a in ADR}); asi = {s: i for i, s in enumerate(AST)}
+AROWS = []
+for st, lo, hi, lon, lat, lbl in ADR:
+    x, y = to_xy(lon, lat)
+    if not (bx0 <= x <= bx1 and by0 <= y <= by1): continue
+    AROWS.append([asi[st], lo, hi, int(round((float(x) - OX) / QS)), int(round((float(y) - OY) / QS)),
+                  lbl if lbl != str(lo) else ""])
+print("addresses packed:", len(AROWS), "on", len(AST), "streets")
+
 G=np.load(build("graph.npz"))
 add("eSeg",G["eSeg"].tobytes(),"u2",len(G["eSeg"]))
 add("eI0", G["eI0"].tobytes(), "u1",len(G["eI0"]))
@@ -209,7 +226,8 @@ head=dict(sections=hdr, nbld=gj.get("nbld"), nknown=gj.get("nknown"),
           # who the page is for, and its clock: the template reads both from here
           place=dict(name=city.NAME, city=city.CITY, tzname=city.TZ_NAME,
                      std=city.TZ_STD, dst=city.TZ_DST, rule=city.DST_RULE),
-          labels=PP.get("labels", []))
+          labels=PP.get("labels", []),
+          addr=dict(st=AST, r=AROWS, gap=__import__("addresses").MAX_GAP))
 hb=json.dumps(head,ensure_ascii=False,separators=(",",":")).encode()
 blob=struct.pack("<I",len(hb))+hb+b"".join(parts)
 gz=gzip.compress(blob,9)
