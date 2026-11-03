@@ -97,7 +97,6 @@ SHORTLIST = [
  ("Huntington Place", "Huntington Place"), ("Corktown", "Corktown"),
  ("Midtown", "Midtown"), ("Lafayette Park", "Lafayette Park"),
  ("Charles H. Wright Museum", "The Wright Museum"),
- ("Woodward Avenue", "Woodward Avenue"),
 ]
 top, missing = [], []
 for label, key in SHORTLIST:
