@@ -15,8 +15,10 @@ SLUG   = "ombra-detroit"          # file names: dist/<SLUG>.html
 # write the same files in the same shape; nothing downstream knows which.
 SOURCE = "overture"
 
-# The mapped area: downtown, Midtown, Corktown and the riverfront.
-S, W, N, E = 42.322, -83.082, 42.362, -83.030
+# The mapped area: downtown, Midtown, Corktown, Mexicantown and the riverfront.
+# West to Clark Park (Mexicantown's centre is 83.0863 W in Overture's
+# divisions), south to the river at the Ambassador Bridge.
+S, W, N, E = 42.312, -83.106, 42.362, -83.030
 
 # Projection origin and the sun's observer: the middle of the box. The shade
 # model and the page both compute the sun from here, so they must agree.
@@ -51,7 +53,7 @@ FOUNTAINS = False
 # --- what the page is told ---------------------------------------------------
 UNITS = "mi"                      # the default until someone chooses: "mi" or "km"
 DESCRIPTION = ("Ray-traced shade map and shade-aware walking routes for downtown "
-               "Detroit, Midtown, Corktown and the riverfront.")
+               "Detroit, Midtown, Corktown, Mexicantown and the riverfront.")
 PAGES_URL = "ptrestler.github.io/ombra-detroit"
 
 def fill(body):
