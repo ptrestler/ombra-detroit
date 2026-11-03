@@ -1,7 +1,7 @@
 # Ombra Detroit
 
-A street-by-street shade map of downtown Detroit, Midtown, Corktown and the
-riverfront, plus shade-aware walking routes. A port of Ombra Roma
+A street-by-street shade map of downtown Detroit, Midtown, Corktown, Mexicantown
+and the riverfront, plus shade-aware walking routes. A port of Ombra Roma
 (`ptrestler/ombra`), which it started as a copy of, history and all; that repo
 is separate and nothing here should touch it.
 
@@ -36,6 +36,17 @@ the data source. Every stage reads it; both builders fill the template's
 The other city-specific things are names, never coordinates: the shortlist and
 map labels in `places.py` (resolved against the data at build time; unmatched
 names are printed and dropped), and the named-street fixtures in the tests.
+
+**The map is the box clipped to the city.** `city.S, W, N, E` is a rectangle
+(42.312–42.362 N, 83.106–83.030 W: west to Clark Park, south to the river at
+the Ambassador Bridge), and a rectangle that reaches the river here also takes
+in downtown Windsor on the far bank. That added 4,600 nodes of network no walk
+can reach and dropped the connected share from 97.5 % to 89.3 %. So
+`fetch_overture.py` reads Overture's locality area for `city.CITY` in
+`city.COUNTRY`, buffers it ~100 m (`area.BUFFER_DEG`) so piers and edge paths
+stay, writes `data/overture/area.json`, and keeps only what lies inside;
+`pack.py` does the same to the OSM addresses. Water is kept whole. `area.py`
+is numpy only. A city with no locality of that name in Overture is not clipped.
 
 ## Where the data comes from
 

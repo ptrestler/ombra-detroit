@@ -1,7 +1,7 @@
 # Ombra Detroit
 
-A street-by-street shade map of downtown Detroit, Midtown, Corktown and the
-riverfront, and walking routes that prefer the shady side. One self-contained
+A street-by-street shade map of downtown Detroit, Midtown, Corktown, Mexicantown
+and the riverfront, and walking routes that prefer the shady side. One self-contained
 HTML file — no server, works offline.
 
 Blue is shaded, red is open sun. Scrub the time and date; tap any street to
