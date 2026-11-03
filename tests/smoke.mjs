@@ -292,6 +292,29 @@ async function run(engine, label, breakStreams, which) {
           `${pick.mapPct}% of the map area`);
     check('the console steps aside to pay for it', pick.consoleGone);
     check('the zoom controls stay above the sheet', pick.zoom);
+    // Street addresses: a mapped number lands where it was mapped, an unmapped
+    // one between its neighbours on the same side, marked as an estimate, and a
+    // number off the map is not offered at all.
+    const ad = await p.evaluate(() => {
+      const o = window.ombra, H = o.head;
+      const ll = e => { const [x, y] = o.entryXY(e); return [H.proj.lon0 + x / H.proj.mperlon, H.proj.lat0 + y / H.proj.mperlat]; };
+      const a = o.searchAddr('1001 woodward ave')[0], b = o.searchAddr('561 Woodward')[0],
+            c = o.searchAddr('99999 woodward'), d = o.searchAddr('1001 e jeff');
+      return { a: a && { n: a.n, c: a.c, ll: ll(a) }, b: b && { n: b.n, c: b.c, ll: ll(b) },
+               none: c.length, jeff: d.map(e => e.n) };
+    });
+    const dm = (p0, q0) => Math.hypot((p0[0] - q0[0]) * 82200, (p0[1] - q0[1]) * 111132);
+    check('a mapped address lands on its building', ad.a && ad.a.n === '1001 Woodward Avenue' &&
+          ad.a.c === 'Address' && dm(ad.a.ll, [-83.0476, 42.3319]) < 60,
+          ad.a ? `${ad.a.n}, ${Math.round(dm(ad.a.ll, [-83.0476, 42.3319]))} m off` : 'nothing');
+    check('an unmapped one is estimated between its neighbours, and says so',
+          ad.b && ad.b.n === '561 Woodward Avenue' && ad.b.c === 'Estimated address', ad.b ? ad.b.c : 'nothing');
+    check('a number off the map is not offered', ad.none === 0);
+    check('abbreviations and partial words find the street', ad.jeff.some(n => /Jefferson/.test(n)), ad.jeff.join(' | '));
+    await p.fill('#rFromI', '1001 woodward'); await p.waitForTimeout(250);
+    check('and the address is the first thing the field offers', await p.evaluate(() =>
+      /^1001 Woodward Avenue/.test(document.querySelector('#rResults .res').textContent)),
+      await p.evaluate(() => document.querySelector('#rResults .res').textContent.trim()));
     // A and B are fields: typing filters the list under whichever has the cursor
     await p.fill('#rFromI', 'Campus Martius'); await p.waitForTimeout(250);
     const typed = await p.evaluate(() =>

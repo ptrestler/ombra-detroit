@@ -296,6 +296,23 @@ fold, `#conToggle`), the choice is remembered in `ombra.side`, and `openRoute`
 unfolds it, since on desktop the route card lives inside the sidebar. The tab is
 in `UIHIT`, so a tap on it is not also a map tap.
 
+**Addresses are OpenStreetMap's, whatever `city.SOURCE` says.** Overture's
+address theme has 100,000 rows for Windsor and the Oakland County suburbs and
+none in the City of Detroit, so `fetch_osm.py --addresses` (one Overpass query,
+centres and tags only; `make fetch` runs it after either fetcher) writes
+`data/osm/extra_addr.json`, and `addresses.py` reads it into 2,540 addresses on
+228 streets. OSM writes one building's numbers many ways ("2462-2472",
+"439;441", "3627-B"); all of them become a range. In the page, `searchAddr`
+answers "1001 woodward ave" or "1001 e jeff" (abbreviations spelled out, each
+typed word the start of a word of the name): a mapped number lands where it was
+mapped; an unmapped one is interpolated between the nearest mapped numbers of
+the same parity on the same street, at most `addresses.MAX_GAP` (200) apart, and
+is offered as an **estimated address**. `measure_addresses.py` scores that
+leave-one-out: a median 12 m off, p90 40 m, against p90 65 m with no limit. A
+number with no neighbours in reach is not offered. The table rides in the header
+(`head.addr`), ~50 kB of page. A bare street as an end still lands at the
+average of its points, which is why Woodward is not in the shortlist.
+
 **The "leaves the route most of the screen" checks run close to the line in a
 cloud session.** Playwright's Chromium there cannot load the webfonts, and the
 fallback runs taller: the last Rome build failed two of them at 49 % in this

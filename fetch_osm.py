@@ -70,6 +70,16 @@ def cached(path, query):
     time.sleep(5)
     return True
 
+# --- addresses: one query, small (centres and tags only) ---------------------
+# Read by pack.py whatever city.SOURCE says: Overture has no Detroit addresses.
+# `fetch_osm.py --addresses` fetches only this, which is all an Overture build
+# needs from Overpass.
+import sys
+cached(osm("extra_addr.json"),
+       f'[out:json][timeout:90];nwr["addr:housenumber"]{BB};out center tags;')
+if "--addresses" in sys.argv:
+    raise SystemExit(0)
+
 # --- streets and buildings, tiled -------------------------------------------
 # NB: area=yes ways are INCLUDED. They are the pedestrian piazzas, and dropping
 # them severs the walking network across Piazza della Rotonda, Piazza Venezia

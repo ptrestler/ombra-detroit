@@ -1583,7 +1583,11 @@ is off by <b>1.5 points</b> on average; showing the nearest sampled date instead
 you the second. Each one searches <b>__NPLACE__ landmarks</b> — parks, museums, plazas,
 stadiums, stations, churches — and every one of the <b>__NNAME__ named streets</b> on the
 map, so you can type "Campus Martius", "Eastern Market" or "Woodward Avenue" rather than
-hunting for a pixel. <b>Pick on the map</b> is there for a doorway with no name — it tells
+hunting for a pixel. It also knows <b>__NADDR__ street addresses</b> from OpenStreetMap, so
+"1001 Woodward" lands on the building. A number nobody has mapped is placed between the
+mapped numbers either side of it on the same side of the street, and marked as an estimate:
+checked against the mapped ones, that is about <b>12&nbsp;m</b> off typically, 40&nbsp;m at worst
+in nine cases of ten. An address that is not on this map simply isn't offered. <b>Pick on the map</b> is there for a doorway with no name — it tells
 you which street it landed on. <b>Use my location</b> reads your GPS, but only where the
 browser will hand it over: the copy of this page hosted on claude.ai runs inside a sandboxed
 frame that blocks location outright, so the button hides itself there. Download the page and
@@ -1699,6 +1703,7 @@ function openSheet(tab){
         ? (H.nbld - H.nknown - (H.ncad || 0)).toLocaleString("en") : "")
      // counted off the payload rather than typed in: the street total read
      // "2,088" for several rebuilds after it was really 2,067
+     .replace("__NADDR__", H.addr ? H.addr.r.length.toLocaleString("en") : "")
      .replace("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "")
      .replace("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "");
   else renderList();
@@ -2109,6 +2114,51 @@ document.querySelectorAll(".star").forEach(b => b.addEventListener("click", e =>
   if(st.pick) renderResults(fieldOf(st.pick).value.trim());
 }));
 
+/* ---------- street addresses ---------- */
+/* "1001 Woodward" rather than Woodward, which runs ten miles. The addresses are
+   OpenStreetMap's (H.addr, see addresses.py): a mapped number lands where it was
+   mapped, and a number nobody mapped is placed between the nearest mapped ones
+   on the same side of the same street - at most H.addr.gap numbers apart - and
+   says it is an estimate. measure_addresses.py: a median 12 m off, p90 40 m.
+   Typed words match the start of any word of the street name, so "1001 e jeff"
+   finds East Jefferson Avenue, and the usual abbreviations are spelled out. */
+const ABBR = {ave:"avenue",av:"avenue",st:"street",blvd:"boulevard",dr:"drive",rd:"road",
+  pl:"place",ct:"court",pkwy:"parkway",hwy:"highway",ln:"lane",sq:"square",ter:"terrace",
+  e:"east",w:"west",n:"north",s:"south"};
+const addrTok = s0 => norm(s0).replace(/[.,#]/g," ").split(/\s+/).filter(Boolean).map(w => ABBR[w] || w);
+let ADDR = null;
+function addrIndex(){
+  if(ADDR) return ADDR;
+  const A = H.addr || {st:[], r:[], gap:0}, by = new Map();
+  for(const r of A.r){ if(!by.has(r[0])) by.set(r[0], []); by.get(r[0]).push(r); }
+  for(const v of by.values()) v.sort((a,b) => a[1]-b[1] || a[2]-b[2]);
+  return ADDR = {st: A.st.map(n => ({n, t: addrTok(n)})), by, gap: A.gap || 0};
+}
+function searchAddr(q){
+  const m = /^\s*(\d+)\s*[a-z]?\s+(.+)$/i.exec(q);
+  if(!m || !H.addr) return [];
+  const num = +m[1], qt = addrTok(m[2]);
+  if(!qt.length) return [];
+  const I = addrIndex(), XY = r => [H.ox + r[3]*H.qs, H.oy + r[4]*H.qs], out = [];
+  I.st.forEach((s0, si) => {
+    if(!qt.every(w => s0.t.some(x => x.startsWith(w)))) return;
+    const rows = I.by.get(si) || [];
+    const ex = rows.find(r => r[1] <= num && num <= r[2]);
+    if(ex){ const [x, y] = XY(ex);
+      out.push({n:(ex[5] || String(ex[1])) + " " + s0.n, c:"Address", kind:2, x, y, hi:0, s:2}); return; }
+    let lo = null, hi = null;                       // same side: same parity
+    for(const r of rows){
+      if(r[1] !== r[2] || r[1] % 2 !== num % 2) continue;
+      if(r[1] < num) lo = r; else { hi = r; break; }
+    }
+    if(lo && hi && hi[1] - lo[1] <= I.gap){
+      const f = (num - lo[1]) / (hi[1] - lo[1]), [x0, y0] = XY(lo), [x1, y1] = XY(hi);
+      out.push({n:num + " " + s0.n, c:"Estimated address", kind:2,
+                x:x0 + f*(x1 - x0), y:y0 + f*(y1 - y0), hi:0, s:1});
+    }
+  });
+  return out.sort((a,b) => b.s - a.s || a.n.length - b.n.length).slice(0, 6);
+}
 function searchDest(q){
   const n=norm(q);
   if(!n) return savedRows("").concat(H.top.map(t=>({n:t[0], c:"", i:t[2], kind:t[1], hi:0})));
@@ -2122,7 +2172,7 @@ function searchDest(q){
     }
   out.sort((a,b)=> (b.s>=100?1:0)-(a.s>=100?1:0) || (a.hi===0?0:1)-(b.hi===0?0:1) ||
                    a.hi-b.hi || (b.s-a.s) || a.n.length-b.n.length || a.n.localeCompare(b.n));
-  return savedRows(n).concat(out).slice(0,40);
+  return savedRows(n).concat(searchAddr(q), out).slice(0,40);
 }
 function labelForNode(n){
   for(let p=HEADi[n];p<HEADi[n+1];p++){
@@ -2436,7 +2486,7 @@ function renderResults(q){
   const rows=searchDest(q);
   const box=$("#rResults");
   if(!rows.length){ box.innerHTML='<div class="resnote">Nothing matched. Try a street name, '+
-    'a park, a plaza \u2014 or pick a point on the map.</div>'; return; }
+    'an address, a park, a plaza \u2014 or pick a point on the map.</div>'; return; }
   const nq=norm(q);
   box.innerHTML = rows.map((r,ix)=>{
     let nm=r.n;
@@ -3197,7 +3247,7 @@ const BOOT = {};
     fitAll();
     updateReadouts(); drawAll(); renderList(); lap("draw");
     locateIfAllowed();
-    window.ombra = {st, BOOT, setPoint, setEnd, openPick, openRoute, searchDest, entryXY, recompute, rampInk,
+    window.ombra = {st, BOOT, setPoint, setEnd, openPick, openRoute, searchAddr, searchDest, entryXY, recompute, rampInk,
                     BUILD, checkFresh,
                     renderRoute, frameIndex, churchStatus, sunAt, solarPos, cityTZ, dstWindow, nearestNode, labelForNode, nasoNodes, loadDate, me, goNow,
                     nodeXY:i=>[NODEX[i],NODEY[i]], comp:i=>COMP[i], bigc:()=>BIGC,

@@ -127,5 +127,20 @@ check("what it cannot read, it refuses",
       all(ph(x) is None for x in ["closed", "Mar Su[-1]-Oct Su[-1] -1 day 08:00-19:00",
                                    "sunrise-sunset", "Mo-Fr 08:00-12:00 \"by appointment\"", ""]))
 
+print("\nstreet addresses")
+from addresses import parse_number as pn
+check("a plain number reads", pn("1001") == (1001, 1001))
+check("ranges and lists read as a span",
+      pn("2462-2472") == (2462, 2472) and pn("439;441") == (439, 441) and pn("2544,2546") == (2544, 2546))
+check("a unit letter is not a range", pn("3627-B") == (3627, 3627) and pn("3627B") == (3627, 3627))
+check("what is not a number is refused", all(pn(x) is None for x in ["", "1/2", "abc", None]))
+from paths import RAWOSM
+from addresses import load as load_addr
+AD = load_addr(os.path.join(RAWOSM, "extra_addr.json"))
+check("the address data is there", len(AD) > 2000, f"{len(AD):,} addresses")
+check("1001 Woodward is where it should be",
+      any(a[0] == "Woodward Avenue" and a[1] == 1001 and abs(a[3] + 83.0476) < 0.001 and abs(a[4] - 42.3319) < 0.001
+          for a in AD))
+
 print(f"\n{'all checks passed' if not fails else str(len(fails)) + ' FAILED: ' + ', '.join(fails)}")
 sys.exit(1 if fails else 0)
