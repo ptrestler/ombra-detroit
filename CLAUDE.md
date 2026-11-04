@@ -392,12 +392,14 @@ what to tell anyone stuck on it.
 **Today is answered with the closest sun, not the nearest date.** The model
 samples the 1st and 15th; `measure_dates.py` scores ways of standing in for the
 8th and 23rd of every month against their real shade. For Detroit: the nearest
-sampled date at the same clock time is off by **2.90 pp** mean (3.67 % of
-street-frames by more than 20), and **8.83 pp** for the dates whose brackets
-straddle a clock change (early March, late October); the frame from *any* date
-whose sun is closest in the sky, **1.38 pp** (1.69 %), 1.72 across the changes;
-blending the two closest suns, 1.41. (Rome: 3.03, 12.9, 1.63, 1.67.) Shade
-depends on the sun's direction and nothing else in this model. `solarPos` in the
+sampled date at the same clock time is off by **3.69 pp** mean (4.83 % of
+street-frames by more than 20), and **13.16 pp** for the dates whose brackets
+straddle a clock change (early March, late October); the frame from any date
+*in the same leaf season* whose sun is closest in the sky, **1.85 pp** (2.28 %),
+3.14 across the changes; blending the two closest suns, 1.82 (3.23 across the
+changes). (Before measured canopy: 2.90, 8.83, 1.38, 1.41. Rome: 3.03, 12.9,
+1.63, 1.67.) Shade depends on the sun's direction and the leaves, nothing else
+in this model. `solarPos` in the
 template is `solar.py` line for line, and the smoke test holds it to the build's
 own sun on all 768 frames (0.005° worst) and to `city.tz_for` on every one.
 `sunAt(t)` is the one place a slot becomes a frame; it does not unpack shade,
@@ -479,10 +481,10 @@ complete absence when it does not.
 `measure_days.mjs` is why. For Detroit, 200 random days each of 5 and 6 stops
 drawn from the 33 shortlist landmarks, from 09:00 and from 13:00 on 15 July,
 every leg routed at its own hour: routing each leg for shade (what ships) cuts
-sun by a median 21–25 % against the shortest routes; choosing the *order* for
-shade on top of that saves a median 0 %, more than 10 % on 3–7 % of days and
-more than 25 % on at most 1 % — the shadiest order is the shortest one on
-70–79 % of days. (Rome: 33–36 %, 0 %, and ~70 %.) An optimiser would be a lot
+sun by a median 26–28 % against the shortest routes; choosing the *order* for
+shade on top of that saves a median 0 %, more than 10 % on 2–4 % of days and
+more than 25 % on none — the shadiest order is the shortest one on 72–80 % of
+days. (Before measured canopy: 21–25 %, 0 %, 3–7 %, 70–79 %.) (Rome: 33–36 %, 0 %, and ~70 %.) An optimiser would be a lot
 of UI for that. The **+** under the swap button (up to six stops) turns a walk into
 legs — it sits in that column because a row of its own cost every walk 30 px
 and took the card past half the map; `recomputeChain` routes
@@ -587,7 +589,7 @@ part, and the installed app's cache takes it after that.
 | Addresses | 3,766 in the city; an estimated number is a median 10 m off, p90 36 m |
 | Sunrise/sunset vs published | to the minute at both solstices, 1 min on 20 March |
 | Tree canopy | 10.4 % of the grid ≥ 3 m outside buildings (Meta/WRI CHM) + mapped trees; ≥ 3 m within 4 m of 47 % of mapped trees vs 23 % of random points; on 1.0 % of building interiors |
-| Today from the closest sun | 1.38 pp mean error (nearest date: 2.90) |
+| Today from the closest sun | 1.85 pp mean error, same leaf season (nearest date: 3.69) |
 
 **Height error does not average out, it concentrates** — in Rome, perturbing the
 estimated heights left 94.5 % of values bit-identical and moved the 5.5 % that
