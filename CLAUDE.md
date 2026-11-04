@@ -452,8 +452,14 @@ the methodology panel drops its bullet. The code stays, shared with Rome;
 complete absence when it does not.
 
 **Stops are chained in the order you give them, and nothing reorders them.**
-`measure_days.mjs` is why: the shadiest order is the shortest one on ~70 % of
-days. The **+** under the swap button (up to six stops) turns a walk into
+`measure_days.mjs` is why. For Detroit, 200 random days each of 5 and 6 stops
+drawn from the 33 shortlist landmarks, from 09:00 and from 13:00 on 15 July,
+every leg routed at its own hour: routing each leg for shade (what ships) cuts
+sun by a median 21–25 % against the shortest routes; choosing the *order* for
+shade on top of that saves a median 0 %, more than 10 % on 3–7 % of days and
+more than 25 % on at most 1 % — the shadiest order is the shortest one on
+70–79 % of days. (Rome: 33–36 %, 0 %, and ~70 %.) An optimiser would be a lot
+of UI for that. The **+** under the swap button (up to six stops) turns a walk into
 legs — it sits in that column because a row of its own cost every walk 30 px
 and took the card past half the map; `recomputeChain` routes
 each one at the half-hour it starts, walking 75 m/min and staying `st.stay`
@@ -465,7 +471,6 @@ fields *and* lines took the card to 73 % of a phone and left the map 27 %. A
 stop within 60 m of a church with readable hours says whether it will be open
 when you get there. Pins are drawn over the place labels — a stop is usually
 a landmark, and its own name used to sit on its number.
-(Measured in Rome.)
 
 ## Publishing
 
@@ -580,8 +585,8 @@ comes from 4,814 mapped trees and is patchy.
 - **The ML heights.** 1,121 buildings still carry Microsoft's estimate as if it were a
   measurement (48 more are overruled by floor counts). Scoring them needs a second height for the same buildings: OSM
   tags, or USGS 3DEP lidar point clouds directly.
-- **Re-measure what is still Rome's:** `measure_days.mjs`.
-  (`measure_via.mjs` measures the water stop, which Detroit does not ship.)
+- Nothing measured is still Rome's except `measure_via.mjs`, which measures the
+  water stop Detroit does not ship.
 - **Wider coverage.** The east riverfront to Belle Isle is just outside the box.
   Widening to Mexicantown and New Center took the file from 4.6 to 8.4 MB; the
   artifact cap is 16 MB. **Segment indices are uint16** (`eSeg` in `graph.py`,
