@@ -78,7 +78,8 @@ async function run(engine, label, breakStreams, which) {
       };
       return { bagley: at('Bagley Street', 14), monroe: at('Monroe Street', 18) };
     });
-    check('Bagley Street unshaded at 14:00', d.bagley === 0, `${d.bagley}%`);
+    // its buildings shade none of it; street trees shade a few residential blocks
+    check('Bagley Street nearly unshaded at 14:00', d.bagley <= 15, `${d.bagley}%`);
     // Shade is unpacked one date at a time, so a date can be missing or land in
     // the wrong frames without the named streets noticing. The build ships the
     // city mean of every frame; unpack every date and recompute it from D.shade.
@@ -113,7 +114,9 @@ async function run(engine, label, breakStreams, which) {
     check('the page finds the sun where the build did', sun.del <= 0.011 && sun.daz <= 0.011 && sun.tz === 0,
           `worst ${sun.del} deg up, ${sun.daz} deg round, ${sun.tz} clock-rule misses`);
     // 23 October at 14:00: the nearest sampled date is 1 November, after the
-    // clocks go back - an hour of sun away. The closest-sun frame is not.
+    // clocks go back - an hour of sun away. The closest-sun frame is not. It
+    // has to be one in leaf, so 15 October, about 3 degrees off; a bare
+    // February frame would be closer in the sky but wrong about the trees.
     const oct = await p.evaluate(() => {
       const o = window.ombra, st = o.st, H = o.head;
       const keep = { live: st.live, today: st.today, mo: st.mo, day: st.day, ti: st.ti };
@@ -126,8 +129,26 @@ async function run(engine, label, breakStreams, which) {
       Object.assign(st, keep);
       return out;
     });
-    check('a day between samples gets a frame with the sun where it really is', oct.now < 2 && oct.was > 10,
+    check('a day between samples gets a frame with the sun where it really is', oct.now < 3.5 && oct.was > 10,
           `23 Oct 14:00 -> ${oct.from}, ${oct.now} deg off; nearest date was ${oct.was} deg off`);
+    // Leaves: a day in leaf is answered only from frames in leaf, and a bare
+    // day only from bare ones, whatever date has the closer sun.
+    const leaf = await p.evaluate(() => {
+      const o = window.ombra, st = o.st, H = o.head;
+      if (!(H.place && H.place.leaf)) return null;
+      const keep = { live: st.live, today: st.today, mo: st.mo, day: st.day, ti: st.ti };
+      const bad = [];
+      for (let mo = 0; mo < 12; mo++) for (const d of [8, 23]) for (const t of [8, 16, 24]) {
+        st.live = false; st.today = { mo, d }; st.ti = t;
+        const s = o.sunAt(t), f = H.frames[s.fi];
+        if (s.el > 3 && f.leaf !== (o.leafOn(mo + 1, d) ? 1 : 0)) bad.push(`${mo + 1}/${d}`);
+      }
+      Object.assign(st, keep);
+      return { bad: bad.length, first: bad[0],
+               nleaf: H.frames.filter(f => f.leaf).length / 32 };
+    });
+    if (leaf) check('days in leaf use frames in leaf, bare days bare ones', leaf.bad === 0,
+                    `${leaf.nleaf} dates in leaf; ${leaf.bad} misses${leaf.first ? ' e.g. ' + leaf.first : ''}`);
     check("Monroe Street in the towers' shadow at 18:00", d.monroe > 80, `${d.monroe}%`);
     // street lookup and routing
     await p.fill('#search', 'Griswold Street'); await p.press('#search', 'Enter');

@@ -1242,6 +1242,10 @@ function cityTZ(y, m, d){            // US: second Sunday of March to first of N
   const k = m*100 + d, [a, b] = dstWindow(y), P = H.place || {std:-5, dst:-4};
   return (k >= a && k < b) ? P.dst : P.std;
 }
+function leafOn(m, d){               // city.leaf_on: [from, until) as month*100 + day
+  const L = H.place && H.place.leaf; if(!L) return true;
+  const k = m*100 + d; return k >= L[0] && k < L[1];
+}
 function solarPos(y, m, d, h, mi, lat, lon, tz){       // solar.py, line for line
   const jd0 = Date.UTC(y, m-1, d)/86400000 + 2440587.5;
   const jd = jd0 + (h + mi/60 - tz)/24, jc = (jd - 2451545)/36525;
@@ -1288,9 +1292,13 @@ function sunAt(t){
       if(!FSUN) FSUN = H.frames.map(f => f.el > 3
         ? [Math.cos(f.el*RAD)*Math.sin(f.az*RAD), Math.cos(f.el*RAD)*Math.cos(f.az*RAD), Math.sin(f.el*RAD)] : null);
       const u = [Math.cos(el*RAD)*Math.sin(az*RAD), Math.cos(el*RAD)*Math.cos(az*RAD), Math.sin(el*RAD)];
+      // only frames in the same leaf season: 23 October's sun is February's,
+      // and February's trees are bare
+      const lf = leafOn(m, d) ? 1 : 0;
       let best = -2; fi = 0;
       for(let i=0;i<FSUN.length;i++){
         const v = FSUN[i]; if(!v) continue;
+        if(H.frames[i].leaf != null && H.frames[i].leaf !== lf) continue;
         const c = v[0]*u[0] + v[1]*u[1] + v[2]*u[2];
         if(c > best){ best = c; fi = i; }
       }
@@ -1572,10 +1580,11 @@ so the Renaissance Center's shadow is the shape of its cylinders, not of its pod
 <b>1st and 15th of every month</b> — 24 dates, each at half-hour steps. Times are Detroit
 civil time, with daylight saving applied on the real US dates (8 March to 1 November in 2026).</li>
 <li>On every other day, the map works out where the sun really is and shows the stored
-moment with the sun closest to that — shade depends on where the sun is, not on the
-date. Checked against the real shade computed for the 8th and 23rd of every month, that
-is off by <b>1.4 points</b> on average; showing the nearest sampled date instead was off by
-2.9, and by 8.8 around the clock changes, when it answered with a sun an hour away.</li>
+moment with the sun closest to that, from a date when the trees are in the same state —
+shade depends on where the sun is and whether there are leaves. Checked against the real
+shade computed for the 8th and 23rd of every month, that is off by <b>1.9 points</b> on
+average; showing the nearest sampled date instead was off by 3.7, and by 13 around the
+clock changes, when it answered with a sun an hour away.</li>
 </ul>
 
 <h3>Planning a walk</h3>
@@ -1610,8 +1619,14 @@ rather than just take it on faith.</li>
 carry a height: __HSRC__. The remaining <b>__NIMP__</b>, mostly sheds and garages, are estimated
 from their neighbours, weighted by distance \u2014 measured against tagged buildings of the same
 size, that estimate is off by about <b>4&nbsp;m</b>.</li>
-<li><b>__NTREE__ mapped trees</b>, __NROW__ tree rows and the wooded parts of parks, modelled as
+<li data-mapped-trees><b>__NTREE__ mapped trees</b>, __NROW__ tree rows and the wooded parts of parks, modelled as
 9–11 m canopy. Tree mapping is patchy, so some leafy streets score drier than they feel.</li>
+<li data-chm><b>Tree canopy over __CANPCT__&nbsp;% of the map</b>, at its measured height, from Meta and
+WRI's 1&nbsp;m canopy height map (satellite imagery, mostly 2018–2020), with __NTREE__ trees
+mapped in OpenStreetMap added where the imagery is older than the tree. A crown is treated as
+solid, so it shades a little more than it does in life.</li>
+<li data-leaf>Trees shade the street only <b>__LEAF__</b>, when they are in leaf. The rest of the
+year the map sees bare branches, and only buildings cast shade.</li>
 <li data-naso><b>__NNASO__ drinking fountains</b> from OpenStreetMap. They appear on the map as you zoom
 in, and a planned walk is told how many are on it and how long its driest stretch is. A dry
 walk can be routed via one: the stop chosen is the one that most shortens the driest stretch
@@ -1634,7 +1649,8 @@ prompt appears at the bottom once a newer one exists.</li>
 <li>Map data © OpenStreetMap contributors, ODbL, via Overture Maps Foundation.
 Building heights from Esri Community Maps (CC BY 4.0), USGS 3DEP lidar and Microsoft ML
 Buildings (ODbL), as carried by Overture. Places © Overture Maps Foundation. Elevation
-data courtesy of the USGS 3D Elevation Program via AWS Open Data.</li>
+data courtesy of the USGS 3D Elevation Program via AWS Open Data.<span data-chmattr> Tree canopy
+heights © Meta and World Resources Institute (CC BY 4.0).</span></li>
 </ul>
 
 <h3>What it doesn't know</h3>
@@ -1680,6 +1696,14 @@ A route's own strip scrubs the same way, for that walk.</li>
 </ul>
 </div>`;
 
+function leafSpan(){                 // "from 1 May to 31 October", from city.LEAF_ON
+  const L = H.place && H.place.leaf; if(!L) return "";
+  const MO = ["January","February","March","April","May","June","July","August",
+              "September","October","November","December"];
+  const a = L[0], b = new Date(Date.UTC(2026, Math.floor(L[1]/100)-1, L[1]%100 - 1));
+  return "from " + (a%100) + " " + MO[Math.floor(a/100)-1] + " to " +
+         b.getUTCDate() + " " + MO[b.getUTCMonth()];
+}
 function openSheet(tab){
   sheetOpen=true; sheetTab=tab; $("#sheet").classList.add("open");
   $("#tabShade").setAttribute("aria-pressed", tab==="shade");
@@ -1688,30 +1712,39 @@ function openSheet(tab){
   $("#sheetTitle").textContent = tab==="how" ? "How it works" :
     (tab==="sun" ? "Worst sun" : "Shadiest streets");
   if(tab==="how") $("#sheetBody").innerHTML = HOWTO
-     .replace("__NEDGE__", H.nedge ? H.nedge.toLocaleString("en") : "")
-     .replace("__NETKM__", H.netkm ? Math.round(H.netkm).toLocaleString("en") : "")
-     .replace("__BIGPCT__", H.bigpct ? String(Math.floor(H.bigpct)) : "")
-     .replace("__NTREE__", H.ntree != null ? H.ntree.toLocaleString("en") : "")
-     .replace("__NROW__", H.nrow != null ? H.nrow.toLocaleString("en") : "")
-     .replace("__RELIEF__", H.relief != null ? String(Math.round(H.relief)) : "")
-     .replace("__HSRC__", H.hsrc ? Object.entries(H.hsrc).sort((a,b)=>b[1]-a[1])
+     .replaceAll("__NEDGE__", H.nedge ? H.nedge.toLocaleString("en") : "")
+     .replaceAll("__NETKM__", H.netkm ? Math.round(H.netkm).toLocaleString("en") : "")
+     .replaceAll("__BIGPCT__", H.bigpct ? String(Math.floor(H.bigpct)) : "")
+     .replaceAll("__NTREE__", H.ntree != null ? H.ntree.toLocaleString("en") : "")
+     .replaceAll("__NROW__", H.nrow != null ? H.nrow.toLocaleString("en") : "")
+     .replaceAll("__CANPCT__", H.canpct != null ? String(Math.round(H.canpct)) : "")
+     .replaceAll("__LEAF__", leafSpan())
+     .replaceAll("__RELIEF__", H.relief != null ? String(Math.round(H.relief)) : "")
+     .replaceAll("__HSRC__", H.hsrc ? Object.entries(H.hsrc).sort((a,b)=>b[1]-a[1])
         .map(([k,v])=>v.toLocaleString("en")+" from "+k).join(", ") : "from OpenStreetMap tags")
-     .replace("__NBLD__", H.nbld ? H.nbld.toLocaleString("en") : "")
-     .replace("__NKNOWN__", H.nknown != null ? H.nknown.toLocaleString("en") : "")
-     .replace("__NNASO__", H.nnaso != null ? H.nnaso.toLocaleString("en") : "")
-     .replace("__NCHOPEN__", H.ch ? String(H.ch.length) : "")
-     .replace("__NCHURCH__", H.nchurch != null ? String(H.nchurch) : "")
-     .replace("__NIMP__", (H.nbld && H.nknown != null)
+     .replaceAll("__NBLD__", H.nbld ? H.nbld.toLocaleString("en") : "")
+     .replaceAll("__NKNOWN__", H.nknown != null ? H.nknown.toLocaleString("en") : "")
+     .replaceAll("__NNASO__", H.nnaso != null ? H.nnaso.toLocaleString("en") : "")
+     .replaceAll("__NCHOPEN__", H.ch ? String(H.ch.length) : "")
+     .replaceAll("__NCHURCH__", H.nchurch != null ? String(H.nchurch) : "")
+     .replaceAll("__NIMP__", (H.nbld && H.nknown != null)
         ? (H.nbld - H.nknown - (H.ncad || 0)).toLocaleString("en") : "")
      // counted off the payload rather than typed in: the street total read
      // "2,088" for several rebuilds after it was really 2,067
-     .replace("__NADDR__", H.addr ? H.addr.r.length.toLocaleString("en") : "")
-     .replace("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "")
-     .replace("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "");
+     .replaceAll("__NADDR__", H.addr ? H.addr.r.length.toLocaleString("en") : "")
+     .replaceAll("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "")
+     .replaceAll("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "");
   else renderList();
   // no readable church hours in this build's data: say nothing rather than "0 of 95"
   if(tab==="how" && !(H.ch && H.ch.length)){ const li=$("#sheetBody [data-ch]"); if(li) li.remove(); }
   if(tab==="how" && !D.naX){ const li=$("#sheetBody [data-naso]"); if(li) li.remove(); }
+  // measured canopy replaces the mapped-trees line; evergreen cities have no season line
+  if(tab==="how"){
+    const drop = sel => { const li=$("#sheetBody "+sel); if(li) li.remove(); };
+    drop(H.chm ? "[data-mapped-trees]" : "[data-chm]");
+    if(!H.chm) drop("[data-chmattr]");
+    if(!(H.place && H.place.leaf)) drop("[data-leaf]");
+  }
   $("#sheetBody").scrollTop=0;
 }
 function closeSheet(){ sheetOpen=false; $("#sheet").classList.remove("open"); }
@@ -3251,7 +3284,7 @@ const BOOT = {};
     locateIfAllowed();
     window.ombra = {st, BOOT, setPoint, setEnd, openPick, openRoute, searchAddr, searchDest, entryXY, recompute, rampInk,
                     BUILD, checkFresh,
-                    renderRoute, frameIndex, churchStatus, sunAt, solarPos, cityTZ, dstWindow, nearestNode, labelForNode, nasoNodes, loadDate, me, goNow,
+                    renderRoute, frameIndex, churchStatus, sunAt, solarPos, cityTZ, dstWindow, leafOn, nearestNode, labelForNode, nasoNodes, loadDate, me, goNow,
                     nodeXY:i=>[NODEX[i],NODEY[i]], comp:i=>COMP[i], bigc:()=>BIGC,
                     screenXY:i=>[sx(NODEX[i]),sy(NODEY[i])],   // where it is on screen now
                     get data(){return D}, get head(){return H}};

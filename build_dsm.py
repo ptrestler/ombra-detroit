@@ -88,11 +88,33 @@ for el in green:
             if len(pts)>=3: cd.polygon(pts, fill=int(WOOD_H*10)); nwood+=1
 print("canopy: trees",ntree,"rows",nrow,"wood",nwood)
 canopy=np.array(cim,dtype=np.uint16)
+
+# Measured canopy (fetch_canopy.py: Meta/WRI's 1 m canopy height map, resampled
+# onto this grid). Mapped trees are 1 % of the box; this finds canopy over 10 %.
+# Below 3 m is hedges, cars and noise. On roofs it is mostly wrong (1 % of
+# building cores read >= 3 m), and a roof is already in the surface, so only
+# cells outside every outline take it. The mapped trees stay: half of them are
+# too young or too new for the imagery to see.
+nchm=0; chm_src=None
+from paths import DATA
+cpath=os.path.join(DATA, "canopy", "chm2m.png")
+if os.path.exists(cpath):
+    cj=json.load(open(cpath.replace(".png",".json")))
+    assert (cj["NX"],cj["NY"])==(NX,NY) and abs(cj["x0"]-x0)<1e-6 and abs(cj["y1"]-y1)<1e-6, \
+        "data/canopy was made for another grid: python fetch_canopy.py"
+    chm=np.array(Image.open(cpath)).astype(np.uint16)
+    take=(chm>=3)&(bmask==0)
+    nchm=int(take.sum()); chm_src=cj["source"]
+    canopy=np.maximum(canopy, np.where(take, chm*10, 0).astype(np.uint16))
+    print(f"measured canopy: {nchm:,} cells >= 3 m ({100*take.mean():.1f} % of the grid)")
 dsm=np.maximum(bsurf,canopy)
-np.save(build("dsm.npy"),dsm); np.save(build("canopy.npy"),canopy); np.save(build("bmask.npy"),bmask)
+# Out of leaf (city.leaf_on) shade.py reads the surface without trees.
+np.save(build("dsm.npy"),dsm); np.save(build("dsm_bare.npy"),bsurf)
+np.save(build("canopy.npy"),canopy); np.save(build("bmask.npy"),bmask)
 json.dump({"x0":float(x0),"y0":float(y0),"x1":float(x1),"y1":float(y1),"NX":NX,"NY":NY,"RES":RES,
            "S":S,"W":W,"N":N,"E":E,"nbld":len(blds),"nknown":len(known),"ncadastre":ncad,
            "ntree":ntree,"nrow":nrow,"nwood":nwood,"nparts":len(parts),
+           "canpct":round(float((canopy>0).mean())*100,1),"chm":chm_src,
            # where the known heights came from (Overture records it; raw OSM is all tags)
            "hsrc":dict(__import__("collections").Counter(
                "OSM floor counts" if b["src"] == "levels" else (b["tags"].get("height:source") or "OpenStreetMap")

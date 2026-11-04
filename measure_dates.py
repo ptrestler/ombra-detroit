@@ -9,8 +9,8 @@ the 23rd of every month - and scores ways of standing in for them from the
   nearest   what the page does: the closest sampled date, same civil time
   linear    blend the two sampled dates either side by distance in days,
             same civil time
-  sun-1     the frame, from any date, whose sun is closest in the sky -
-            shade depends on nothing but the sun's direction
+  sun-1     the frame, from any date in the same leaf season, whose sun is
+            closest in the sky - shade depends on nothing else
   sun-2     the two closest-sun frames, blended by inverse angular distance
 
 Scored on daylight segment-frames (sun above 3 degrees at the true time):
@@ -36,6 +36,8 @@ def unit(el, az):
     return np.stack([np.cos(e) * np.sin(a), np.cos(e) * np.cos(a), np.sin(e)], -1)
 U = unit(EL, AZ)
 LIT = EL > 3.0
+# a day in leaf is answered from frames in leaf, as the page does (city.leaf_on)
+LEAF = np.array([m.get("leaf", 1) for m in META], bool)
 
 def bracket(mo, d):
     """the sampled dates either side, and how far between them (0..1)"""
@@ -64,6 +66,7 @@ for (mo, d) in tests:
         u = unit(np.array(m["el"]), np.array(m["az"]))
         ang = np.degrees(np.arccos(np.clip(U @ u, -1, 1)))
         ang[~LIT] = 1e9                    # a night frame is not a stand-in for day
+        ang[LEAF != shade.leaf_on(mo, d)] = 1e9   # nor a bare frame for a day in leaf
         o = np.argsort(ang)
         a1, a2 = ang[o[0]], ang[o[1]]
         w1, w2 = (1 / max(a1, 1e-3)), (1 / max(a2, 1e-3))

@@ -91,7 +91,9 @@ def shade(name, hour, day=15, mo=8):
     di = (mo-1)*2 + (1 if day == 15 else 0)
     return float(F[di*32 + (hour-6)*2, ids].mean())
 # low wide streets vs the downtown canyons - qualitative facts about Detroit
-for name, hour, lo, hi in [("Bagley Street", 14, 0, 8),            # Corktown/Mexicantown, two storeys
+# Bagley: its buildings shade none of it at 14:00 and street trees shade 15 of
+# its 80 segments (west Mexicantown and Corktown's residential blocks): ~10 %
+for name, hour, lo, hi in [("Bagley Street", 14, 0, 15),           # Corktown/Mexicantown, two storeys
                            ("Michigan Avenue", 14, 0, 20),         # wide, low, west of downtown
                            ("Grand River Avenue", 14, 0, 20),
                            ("Griswold Street", 10, 75, 100),       # Financial District canyon
@@ -104,6 +106,17 @@ for name, hour, lo, hi in [("Bagley Street", 14, 0, 8),            # Corktown/Me
 v = shade("Monroe Street", 18)
 check("Monroe Street in the towers' shadow at 18:00", v is not None and v > 80,
       f"{v:.0f}%" if v is not None else "missing")
+
+print("\nleaves")
+leaf = {(f["mo"], f["d"]): f.get("leaf") for f in meta}
+check("every frame says whether the trees are in leaf, as city.leaf_on does",
+      all(leaf[k] == int(city.leaf_on(*k)) for k in leaf))
+if city.LEAF_ON:
+    # the same sun with and without leaves: the canopy can only add shade, and
+    # must add some, or the bare surface is what was used for both
+    dsm, bare = np.load(build("dsm.npy")), np.load(build("dsm_bare.npy"))
+    check("the bare surface is the leafy one without trees", bool((bare <= dsm).all()) and (dsm > bare).mean() > 0.01,
+          f"trees raise {100*(dsm > bare).mean():.1f} % of cells")
 
 print("\nrouting graph")
 G = np.load(build("graph.npz"))

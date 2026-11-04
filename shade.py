@@ -4,13 +4,15 @@ from solar import solar_pos
 from streets import build_segments, sample_points
 from geo import to_ll
 
-from city import LAT0 as LAT, LON0 as LON, tz_for   # the observer and the civil clock
+from city import LAT0 as LAT, LON0 as LON, tz_for, leaf_on   # observer, clock, leaves
 EYE=1.7
 DATES=[(mo,d) for mo in range(1,13) for d in (1,15)]
 TIMES=[(h,m) for h in range(6,22) for m in (0,30)]
 
 g=json.load(open(build("grid.json")))
 dsm=np.load(build("dsm.npy")); bmask=np.load(build("bmask.npy"))
+# out of leaf the trees are bare branches: buildings only (city.leaf_on)
+DSM={True: dsm, False: np.load(build("dsm_bare.npy"))}
 NY,NX=dsm.shape; x0,y1,RES=g["x0"],g["y1"],g["RES"]
 
 # --- terrain -------------------------------------------------------------
@@ -61,7 +63,7 @@ print("chosen sample pts still inside a building:", round(float(inside.mean())*1
 EYEZ = gnd(SX,SY) + EYE          # absolute eye elevation per sample point
 MINOBS = float(EYEZ.min())
 
-def shade_mask(elev,az):
+def shade_mask(elev,az,dsm=dsm):
     if elev<=3.0: return np.ones(len(SX),bool)
     er=math.radians(elev); ar=math.radians(az)
     ex,nv=math.sin(ar),math.cos(ar); te=math.tan(er)
@@ -91,10 +93,11 @@ def frame(mo,day,h,mi,year=2026):
     build does not sample."""
     tz=tz_for(year,mo,day)
     e,a=solar_pos(year,mo,day,h,mi,LAT,LON,tz); e=float(e); a=float(a)
-    m=dict(mo=mo,d=day,h=h,mi=mi,el=round(e,2),az=round(a,2),tz=tz)
+    leaf=leaf_on(mo,day)
+    m=dict(mo=mo,d=day,h=h,mi=mi,el=round(e,2),az=round(a,2),tz=tz,leaf=int(leaf))
     if e<=3.0:
         return m, np.full(len(segs),100,np.uint8)
-    b=shade_mask(e,a)
+    b=shade_mask(e,a,DSM[leaf])
     pair=b[:n]|b[n:]
     sh=np.bincount(SI,weights=pair.astype(np.float64),minlength=len(segs))
     return m, np.round(np.where(cnt>0,sh/np.maximum(cnt,1)*100,0)).astype(np.uint8)
