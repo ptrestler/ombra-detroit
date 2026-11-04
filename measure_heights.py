@@ -38,23 +38,34 @@ for t, (c, k) in sorted(by.items(), key=lambda kv: -kv[1][0])[:10]:
     print(f"  {t:<16} {c:>6,}   tagged {100*k/c:5.1f} %")
 
 # --- floors -> metres, where a building carries both -------------------------
-both = []
+# Fitted on measured heights only: an ML height is what is being checked below.
+from heights import ML_SOURCE, LEVEL_BASE_M, levels as nlevels
+def hsrc_of(b): return b["tags"].get("height:source")
+both, mlb = [], []
 for b in blds:
     t = b["tags"]
     h = parse_len(t.get("height")) or parse_len(t.get("building:height"))
-    lv = t.get("building:levels")
-    try: lv = float(str(lv).split(";")[0])
-    except (TypeError, ValueError): lv = None
-    if h and lv and 1.5 <= h <= 400 and 0 < lv <= 120: both.append((lv, h))
+    lv = nlevels(t)
+    if not (h and lv and 1.5 <= h <= 400): continue
+    (mlb if hsrc_of(b) == ML_SOURCE else both).append((lv, h))
 if len(both) >= 10:
     L, H = np.array(both).T
     a, c = np.polyfit(L, H, 1)
-    shipped = L * LEVEL_M + 1.2
-    print(f"\nFLOORS AGAINST HEIGHT, on the {len(both):,} buildings that carry both")
+    shipped = L * LEVEL_M + LEVEL_BASE_M
+    print(f"\nFLOORS AGAINST HEIGHT, on the {len(both):,} buildings with a measured (non-ML) height and floors")
     print(f"  fitted     height = {a:.2f} m x floors {c:+.2f} m   "
           f"RMSE {np.sqrt(np.mean((L*a+c-H)**2)):5.2f}")
-    print(f"  shipped    height = {LEVEL_M:.2f} m x floors +1.20 m   "
+    print(f"  shipped    height = {LEVEL_M:.2f} m x floors {LEVEL_BASE_M:+.2f} m   "
           f"RMSE {np.sqrt(np.mean((shipped-H)**2)):5.2f}  bias {np.mean(shipped-H):+.2f}")
+if mlb:
+    L2, M2 = np.array(mlb).T
+    d = M2 - (L2 * LEVEL_M + LEVEL_BASE_M)
+    bs = [np.median(d[RNG.integers(0, len(d), len(d))]) for _ in range(BOOT)]
+    lo, hi = np.percentile(bs, [2.5, 97.5])
+    big = L2 >= 4
+    print(f"\nML HEIGHTS AGAINST FLOOR COUNTS, on the {len(d)} ML buildings with floors (the build uses the floors there)")
+    print(f"  ML below the floors estimate on {int((d < 0).sum())} of {len(d)}; median {np.median(d):+.1f} m [{lo:+.1f}, {hi:+.1f}]")
+    print(f"  4+ floors: below on {int((d[big] < 0).sum())} of {int(big.sum())}, median {np.median(d[big]):+.1f} m")
 
 # --- estimating the untagged, leave-one-out against the tags -----------------
 known = [b for b in blds if b["src"] != "default"]
@@ -113,7 +124,7 @@ for v in (3.0, 4.0, 5.0):
 print(f"  their median tag {np.median(KH[small]):.1f} m")
 
 # where the tagged heights come from (Overture records it; raw OSM does not)
-def hsrc(b): return b["tags"].get("height:source") or ("OSM levels" if b["src"] == "levels" else "OSM tag")
+def hsrc(b): return "OSM floors" if b["src"] == "levels" else (b["tags"].get("height:source") or "OSM tag")
 hs = collections.Counter(hsrc(b) for b in known)
 if any(b["tags"].get("height:source") for b in known):
     print("\nHEIGHT SOURCES")

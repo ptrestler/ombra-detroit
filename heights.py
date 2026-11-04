@@ -1,5 +1,15 @@
 import re
-LEVEL_M = 3.6
+# Floors -> metres, fitted on the 1,248 Detroit buildings that carry both a
+# measured (non-ML) height and a floor count: height = 3.70 x floors + 1.38
+# (make heights). Rome's was 3.6 x floors + 1.2.
+LEVEL_M, LEVEL_BASE_M = 3.70, 1.38
+# Microsoft's ML heights read low wherever there is a floor count to check them
+# against: below the floors estimate on 42 of the 48 Detroit buildings that have
+# both, median -4.2 m [-6.5, -2.6], and by 10.9 m on 18 of 20 with 4+ floors
+# (Millender Center, 33 floors, 20.6 m; One Campus Martius, 16 floors, 26 m).
+# The floors estimate is unbiased, so on those buildings it wins.
+# make heights prints the comparison.
+ML_SOURCE = "Microsoft ML Buildings"
 def parse_len(v):
     if v is None: return None
     v = str(v).strip().lower().replace(",", ".")
@@ -16,20 +26,26 @@ DEFAULTS = {"church":24,"cathedral":30,"chapel":12,"basilica":30,"garage":4,"gar
             "commercial":18,"retail":14,"school":14,"university":18,"office":20,
             "industrial":10,"warehouse":10,"train_station":15,"terrace":16,"house":9,
             "detached":9,"bungalow":5,"service":4,"toilets":3,"wall":3}
+def levels(tags):
+    """The floor count, or None."""
+    lv = tags.get("building:levels") or tags.get("levels")
+    try:
+        n = float(str(lv).split(";")[0].split(",")[0]) if lv is not None else None
+    except ValueError:
+        return None
+    return n if n is not None and 0 < n <= 120 else None
+
 def building_height(tags):
     """Returns (height_m, source) where source in {tag, levels, default}."""
     h = parse_len(tags.get("height"))
-    if h and 1.5 <= h <= 400: return h, "tag"
+    ml_with_floors = tags.get("height:source") == ML_SOURCE and levels(tags)
+    if h and 1.5 <= h <= 400 and not ml_with_floors: return h, "tag"
     h = parse_len(tags.get("building:height"))
     if h and 1.5 <= h <= 400: return h, "tag"
-    lv = tags.get("building:levels") or tags.get("levels")
-    try:
-        if lv is not None:
-            n = float(str(lv).split(";")[0].split(",")[0])
-            if 0 < n <= 120:
-                extra = parse_len(tags.get("roof:height")) or 0
-                return n*LEVEL_M + 1.2 + min(extra, 12), "levels"
-    except Exception: pass
+    n = levels(tags)
+    if n:
+        extra = parse_len(tags.get("roof:height")) or 0
+        return n*LEVEL_M + LEVEL_BASE_M + min(extra, 12), "levels"
     bt = str(tags.get("building","yes")).lower()
     if bt in DEFAULTS: return DEFAULTS[bt], "default"
     return 17.0, "default"
@@ -51,13 +67,13 @@ INTERP_RADIUS  = 500.0
 INTERP_MIN_M   = 3.0      # Rome's 7 m lifted every Detroit garage; see below
 INTERP_MAX_M   = 34.0
 # Detroit, Overture heights, the box widened to Mexicantown and New Center
-# (make heights): the 653 untagged are small (75th percentile 74 m^2: garages,
+# (make heights): the 651 untagged are small (75th percentile 74 m^2: garages,
 # sheds), so the estimate is scored leave-one-out on the 2,581 tagged buildings
-# of that size. Rome's 7 m floor scores RMSE 4.64 m, bias +1.70: it lifts every
-# garage. A 3 m floor scores 4.42, bias +0.95 - better by 0.23 m, bootstrap
-# [-0.26, -0.19] - and 6.39 m on every tagged building. Unclipped 4.52; a flat
-# 5 m 4.64. (On the Mexicantown map, before New Center: 4.40 against 4.68.)
-INTERP_RMSE_M  = 4.42
+# of that size. Rome's 7 m floor scores RMSE 4.66 m, bias +1.71: it lifts every
+# garage. A 3 m floor scores 4.43, bias +0.97 - better by 0.23 m, bootstrap
+# [-0.26, -0.19] - and 6.48 m on every tagged building. Unclipped 4.55; a flat
+# 5 m 4.65.
+INTERP_RMSE_M  = 4.43
 
 
 def estimate_untagged(known, unk, k=INTERP_K, radius=INTERP_RADIUS,

@@ -212,25 +212,36 @@ in Rome, scrambling the estimated heights moved 5.9 % of the map by more than
 
 **Heights: 95 % are carried, and the 5 % that are estimated are not like the
 rest — `make heights` is how you find out.** Of 15,228 buildings in the box,
-14,544 carry a height from Overture (Esri Community Maps 10,176, USGS lidar
-2,385, Microsoft ML 1,169, OSM tags 814) and 33 a floor count only. The 651 left
+14,496 carry a height from Overture (Esri Community Maps 10,176, USGS lidar
+2,385, Microsoft ML 1,121, OSM tags 814) and 81 a floor count (33 with nothing
+else, 48 whose ML height the floors overrule; see below). The 651 left
 are small — median footprint 25 m² against 132 m² for the tagged: garages and
 sheds — so scoring an estimate on *all* tagged buildings measures towers
-guessed from their neighbours (6.39 m RMSE), which is not the job. On the 2,581
+guessed from their neighbours (6.48 m RMSE), which is not the job. On the 2,581
 tagged buildings with footprints like theirs (≤ 74 m²): IDW as shipped (k = 15,
-≤ 500 m, clip 3–34 m) 4.42 m, bias +0.95; Rome's 7 m floor 4.64, bias +1.70,
+≤ 500 m, clip 3–34 m) 4.43 m, bias +0.97; Rome's 7 m floor 4.66, bias +1.71,
 because it lifts every garage (better by 0.23 m, bootstrap [−0.26, −0.19]);
-unclipped 4.52; per-type defaults 7.06; a flat 5 m 4.64. So
-`heights.INTERP_MIN_M` is 3 and `INTERP_RMSE_M` 4.42. Every number here comes out of `measure_heights.py`,
+unclipped 4.55; per-type defaults 7.06; a flat 5 m 4.65. So
+`heights.INTERP_MIN_M` is 3 and `INTERP_RMSE_M` 4.43. Every number here comes out of `measure_heights.py`,
 which calls `heights.estimate_untagged` — the function the build runs. Never
 move one by eye; the floor moved because the map did, and the measurement said
 so.
 
-The ML heights are the weak point, and nothing here measures them: they count as
-carried, so the jitter probe does not move them. One Campus Martius, a mid-rise
-office tower, reads 26 m. Overture keeps one height per building, so there is no
-overlap between sources to score one against another; a raw OSM fetch would give
-the tags to score Esri, lidar and ML against.
+**Microsoft's ML heights read low, so a floor count overrules them.** Overture
+keeps one height per building, so no second height can score an ML one — but 48
+ML buildings also carry an OSM floor count, and floors → metres is fitted, and
+unbiased, on the 1,236 buildings with a measured height and floors (`LEVEL_M`
+3.70 × floors + `LEVEL_BASE_M` 1.38; Rome's was 3.6 × + 1.2). Against it the ML
+height is lower on 42 of 48, median −4.2 m [−6.5, −2.6], and on 18 of 20 with
+4+ floors by a median 10.9 m: the Millender Center, 33 floors, read 20.6 m; One
+Campus Martius, 16 floors, 26 m. So `building_height` uses the floors there.
+The root-mean-square comparison alone is inconclusive, because some floor tags
+are wrong too (the Hotel St. Regis says 1), but the sign is not. It moved 0.17 %
+of segment-frames, a median 40 pp where they moved, city mean +0.08 pp: the
+streets under those towers. The 1,121 ML heights left are mostly garages and
+houses (median 3.6 m) with nothing to check them against; they count as carried,
+so the jitter probe does not move them. A raw OSM fetch would add tags to score
+them, and Esri and lidar, against.
 
 **`ground.py` checks bare earth, because a tower standing on itself would be
 invisible.** In the US the AWS terrain tiles come from USGS 3DEP, which is bare
@@ -528,17 +539,20 @@ edge keep their outside vertices), and values are clipped rather than wrapped.
 The header also carries `proj`, `place` (name, clock), `labels` (map labels in
 local metres), `netkm`, `bigpct`, `ntree`, `nrow`, `relief`, `hsrc` (where the
 known heights came from) and `source`, so the methodology panel counts rather
-than quotes. The boot and size figures above are Rome's; Detroit's file is
-8.4 MB and `measure_boot.mjs` has not been re-run for it.
+than quotes. The figures above are Rome's. Detroit, 8.4 MB with New Center
+(`measure_boot.mjs`): boot 0.25 s on desktop, 0.80 s with the CPU slowed 4× —
+inflate 288 ms and the first date 216 ms of it — faster than Rome's 6.4 MB file,
+because boot unpacks one date. The first download over mobile data is the slow
+part, and the installed app's cache takes it after that.
 
 ## Accuracy, measured
 
 | | |
 |---|---|
 | Bare earth under the towers | ground under the 25 tallest tagged buildings reads −0.04 m against 50–100 m round them |
-| Buildings in the box | 15,228 (by centroid); 14,544 carry a height, 33 a floor count, 651 estimated |
-| Height sources | Esri Community Maps 10,176, USGS lidar 2,385, Microsoft ML 1,169, OSM tags 814 |
-| Error of the estimate | IDW RMSE 4.42 m, bias +0.95 — leave-one-out on the 2,581 tagged buildings the size of the untagged |
+| Buildings in the box | 15,228 (by centroid); 14,496 carry a height, 81 a floor count, 651 estimated |
+| Height sources | Esri Community Maps 10,176, USGS lidar 2,385, Microsoft ML 1,121, OSM tags 814, OSM floor counts 81 (48 of them overruling an ML height) |
+| Error of the estimate | IDW RMSE 4.43 m, bias +0.97 — leave-one-out on the 2,581 tagged buildings the size of the untagged |
 | Shade's sensitivity to that error | 99.70 % of segment-frames unmoved, city mean +0.00 pp; the 0.30 % that move, move by a median 20 pp (run at σ = 4.40). ML heights are not in this test |
 | Walking network | 78,095 links, ~1,722 km, 98.4 % one connected component, dead ends 5.4 % |
 | Addresses | 3,766 in the city; an estimated number is a median 10 m off, p90 36 m |
@@ -563,10 +577,10 @@ comes from 4,814 mapped trees and is patchy.
   `SOURCE = "osm"`): church hours, street widths, wikidata for place ranking, and
   OSM height tags to score the Overture height sources against each other. Or
   keep Overture's heights and take only the tags from OSM.
-- **The ML heights.** 1,169 buildings carry Microsoft's estimate as if it were a
-  measurement. Scoring them needs a second height for the same buildings: OSM
+- **The ML heights.** 1,121 buildings still carry Microsoft's estimate as if it were a
+  measurement (48 more are overruled by floor counts). Scoring them needs a second height for the same buildings: OSM
   tags, or USGS 3DEP lidar point clouds directly.
-- **Re-measure what is still Rome's:** `measure_boot.mjs`, `measure_days.mjs`.
+- **Re-measure what is still Rome's:** `measure_days.mjs`.
   (`measure_via.mjs` measures the water stop, which Detroit does not ship.)
 - **Wider coverage.** The east riverfront to Belle Isle is just outside the box.
   Widening to Mexicantown and New Center took the file from 4.6 to 8.4 MB; the
