@@ -48,13 +48,17 @@ def building_height(tags):
 # sensitivity claim in the UI a fiction.
 INTERP_K       = 15
 INTERP_RADIUS  = 500.0
-INTERP_MIN_M   = 7.0
+INTERP_MIN_M   = 3.0      # Rome's 7 m lifted every Detroit garage; see below
 INTERP_MAX_M   = 34.0
-# Detroit, Overture heights (make heights): leave-one-out on the 2,145 tagged
-# buildings with footprints like the untagged ones (<= 188 m^2), 4.18 m. On
-# every tagged building it is 10.32 m, but that is towers estimated from their
-# neighbours, which is not what the 255 untagged -- median 27 m^2 -- are.
-INTERP_RMSE_M  = 4.18
+# Detroit, Overture heights, the box widened to Mexicantown (make heights):
+# the 536 untagged are small (75th percentile 72 m^2: garages, sheds), so the
+# estimate is scored leave-one-out on the 1,649 tagged buildings of that size.
+# A 7 m floor (Rome's) scored RMSE 4.68 m, bias +2.04: it lifted every garage.
+# A 3 m floor scores 4.40, bias +1.08 - better by 0.28 m, bootstrap
+# [-0.34, -0.24] - and 7.31 against 7.36 on every tagged building. Unclipped
+# 4.56, a flat 5 m 4.46 (both intervals straddle zero; a flat 5 m is 9.70 on
+# all tagged).
+INTERP_RMSE_M  = 4.40
 
 
 def estimate_untagged(known, unk, k=INTERP_K, radius=INTERP_RADIUS,
