@@ -5,7 +5,7 @@ Mexicantown and the riverfront, plus shade-aware walking routes. A port of Ombra
 (`ptrestler/ombra`), which it started as a copy of, history and all; that repo
 is separate and nothing here should touch it.
 
-Output is a **single self-contained HTML file** (~8.4 MB) with all data embedded:
+Output is a **single self-contained HTML file** (~9.0 MB) with all data embedded:
 no server, no network, works offline.
 
 ## Commands
@@ -204,7 +204,7 @@ to whatever street sat under the panel.
 
 **The seven named streets in `tests/validate.py` are qualitative facts, not a
 sensitivity test.** Bagley, Michigan and Grand River in the sun at 14:00 on
-15 August; the Financial District canyons (Griswold, Shelby) shaded at 10:00;
+15 August (Bagley allowing 15 % for its street trees); the Financial District canyons (Griswold, Shelby) shaded at 10:00;
 Broadway, and Monroe in Greektown east of the towers, shaded at 18:00. They guard
 the physics and the data wiring. When you touch the model, diff
 `build/frames.npy` against the old one rather than trusting the named streets —
@@ -442,6 +442,29 @@ where the dry-stretch line does, and the line must stay one line on a phone:
 two pushes the card past half the map.
 All of that is Rome's measurement, with 460 fountains.
 
+**Tree canopy is measured, and it is seasonal.** OSM's 4,814 mapped trees
+cover 0.9 % of the grid; Meta and WRI's 1 m canopy height map (`fetch_canopy.py`,
+CC BY 4.0, one Web Mercator GeoTIFF per zoom-9 quadkey on AWS Open Data, read
+by range requests with rasterio and resampled onto the 2 m grid by block max)
+finds 10.4 % ≥ 3 m outside building outlines. Checked before use: it reads
+≥ 3 m on 1.0 % of building interiors and 0.5 % of roofs 30 m and up, so it is
+only taken *outside* outlines; on 2.5 % of road vertices (crowns over the
+carriageway); and within 4 m of 47 % of mapped trees against 23 % of random
+points — no offset improves that by more than 3 pp, so it is aligned, and the
+misses are young or new trees, which is why the mapped trees stay in too.
+Overture's `land_cover` (ESA WorldCover) was tried first: 89.5 % "urban", forest
+only as park-sized patches, no street trees. Detroit's trees are deciduous, so
+`city.LEAF_ON` is 1 May – 31 October: frames in it ray-trace `dsm.npy`, the
+rest `dsm_bare.npy` (buildings only), and each frame's meta says `leaf`. The
+page's closest-sun search for today keeps to frames of the same season — 23
+October's closest sun is February's, whose trees are bare — which puts it on
+15 October, 2.9° off. Against the old build: in leaf the city mean went 20.8 →
+32.2 % (residential streets 12.8 → 30.0 %, primary 20.5 → 23.0 %), 23 % of
+daylit segment-frames moving more than 10 pp; out of leaf 27.8 → 25.4 %,
+because the mapped trees no longer shade in winter. Bagley's fixture went from
+0 % to 9.7 % at 14:00 on 15 August: its buildings still shade none of it,
+trees shade 15 of its 80 segments.
+
 **Detroit has no drinking fountains on the map, by decision.** The data has
 14–15 in the box; most walks passed none, and a water stop added distance without
 shortening the dry stretch (one test walk: +0.46 mi, 1.85 → 1.82 mi). Nobody
@@ -543,11 +566,11 @@ Drinking fountains, where a city has them, ride along in two `u2` sections,
 The quantisation origin is the bbox corner less 900 m (outlines that cross the
 edge keep their outside vertices), and values are clipped rather than wrapped.
 The header also carries `proj`, `place` (name, clock), `labels` (map labels in
-local metres), `netkm`, `bigpct`, `ntree`, `nrow`, `relief`, `hsrc` (where the
+local metres), `netkm`, `bigpct`, `ntree`, `nrow`, `canpct`, `chm`, `relief`, `hsrc` (where the
 known heights came from) and `source`, so the methodology panel counts rather
-than quotes. The figures above are Rome's. Detroit, 8.4 MB with New Center
-(`measure_boot.mjs`): boot 0.25 s on desktop, 0.80 s with the CPU slowed 4× —
-inflate 288 ms and the first date 216 ms of it — faster than Rome's 6.4 MB file,
+than quotes. The figures above are Rome's. Detroit, 9.0 MB with New Center
+and measured canopy (`measure_boot.mjs`): boot 0.24 s on desktop, 0.83 s with
+the CPU slowed 4× — inflate 336 ms and the first date 218 ms of it — faster than Rome's 6.4 MB file,
 because boot unpacks one date. The first download over mobile data is the slow
 part, and the installed app's cache takes it after that.
 
@@ -563,6 +586,7 @@ part, and the installed app's cache takes it after that.
 | Walking network | 78,095 links, ~1,722 km, 98.4 % one connected component, dead ends 5.4 % |
 | Addresses | 3,766 in the city; an estimated number is a median 10 m off, p90 36 m |
 | Sunrise/sunset vs published | to the minute at both solstices, 1 min on 20 March |
+| Tree canopy | 10.4 % of the grid ≥ 3 m outside buildings (Meta/WRI CHM) + mapped trees; ≥ 3 m within 4 m of 47 % of mapped trees vs 23 % of random points; on 1.0 % of building interiors |
 | Today from the closest sun | 1.38 pp mean error (nearest date: 2.90) |
 
 **Height error does not average out, it concentrates** — in Rome, perturbing the
@@ -589,7 +613,7 @@ is solid in leaf and absent out of it; nothing in between, and no conifers.
 - Nothing measured is still Rome's except `measure_via.mjs`, which measures the
   water stop Detroit does not ship.
 - **Wider coverage.** The east riverfront to Belle Isle is just outside the box.
-  Widening to Mexicantown and New Center took the file from 4.6 to 8.4 MB; the
+  Widening to Mexicantown and New Center took the file from 4.6 to 8.4 MB, and measured canopy to 9.0 MB; the
   artifact cap is 16 MB. **Segment indices are uint16** (`eSeg` in `graph.py`,
   `pack.py` and the page): the box has 54,111 segments, 83 % of 65,535, so the
   next widening has to move them to u4 first. `graph.py` asserts it.

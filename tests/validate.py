@@ -91,7 +91,9 @@ def shade(name, hour, day=15, mo=8):
     di = (mo-1)*2 + (1 if day == 15 else 0)
     return float(F[di*32 + (hour-6)*2, ids].mean())
 # low wide streets vs the downtown canyons - qualitative facts about Detroit
-for name, hour, lo, hi in [("Bagley Street", 14, 0, 8),            # Corktown/Mexicantown, two storeys
+# Bagley: its buildings shade none of it at 14:00 and street trees shade 15 of
+# its 80 segments (west Mexicantown and Corktown's residential blocks): ~10 %
+for name, hour, lo, hi in [("Bagley Street", 14, 0, 15),           # Corktown/Mexicantown, two storeys
                            ("Michigan Avenue", 14, 0, 20),         # wide, low, west of downtown
                            ("Grand River Avenue", 14, 0, 20),
                            ("Griswold Street", 10, 75, 100),       # Financial District canyon

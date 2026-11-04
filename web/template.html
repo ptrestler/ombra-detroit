@@ -1648,7 +1648,8 @@ prompt appears at the bottom once a newer one exists.</li>
 <li>Map data © OpenStreetMap contributors, ODbL, via Overture Maps Foundation.
 Building heights from Esri Community Maps (CC BY 4.0), USGS 3DEP lidar and Microsoft ML
 Buildings (ODbL), as carried by Overture. Places © Overture Maps Foundation. Elevation
-data courtesy of the USGS 3D Elevation Program via AWS Open Data.</li>
+data courtesy of the USGS 3D Elevation Program via AWS Open Data.<span data-chmattr> Tree canopy
+heights © Meta and World Resources Institute (CC BY 4.0).</span></li>
 </ul>
 
 <h3>What it doesn't know</h3>
@@ -1710,28 +1711,28 @@ function openSheet(tab){
   $("#sheetTitle").textContent = tab==="how" ? "How it works" :
     (tab==="sun" ? "Worst sun" : "Shadiest streets");
   if(tab==="how") $("#sheetBody").innerHTML = HOWTO
-     .replace("__NEDGE__", H.nedge ? H.nedge.toLocaleString("en") : "")
-     .replace("__NETKM__", H.netkm ? Math.round(H.netkm).toLocaleString("en") : "")
-     .replace("__BIGPCT__", H.bigpct ? String(Math.floor(H.bigpct)) : "")
-     .replace("__NTREE__", H.ntree != null ? H.ntree.toLocaleString("en") : "")
-     .replace("__NROW__", H.nrow != null ? H.nrow.toLocaleString("en") : "")
-     .replace("__CANPCT__", H.canpct != null ? String(Math.round(H.canpct)) : "")
-     .replace("__LEAF__", leafSpan())
-     .replace("__RELIEF__", H.relief != null ? String(Math.round(H.relief)) : "")
-     .replace("__HSRC__", H.hsrc ? Object.entries(H.hsrc).sort((a,b)=>b[1]-a[1])
+     .replaceAll("__NEDGE__", H.nedge ? H.nedge.toLocaleString("en") : "")
+     .replaceAll("__NETKM__", H.netkm ? Math.round(H.netkm).toLocaleString("en") : "")
+     .replaceAll("__BIGPCT__", H.bigpct ? String(Math.floor(H.bigpct)) : "")
+     .replaceAll("__NTREE__", H.ntree != null ? H.ntree.toLocaleString("en") : "")
+     .replaceAll("__NROW__", H.nrow != null ? H.nrow.toLocaleString("en") : "")
+     .replaceAll("__CANPCT__", H.canpct != null ? String(Math.round(H.canpct)) : "")
+     .replaceAll("__LEAF__", leafSpan())
+     .replaceAll("__RELIEF__", H.relief != null ? String(Math.round(H.relief)) : "")
+     .replaceAll("__HSRC__", H.hsrc ? Object.entries(H.hsrc).sort((a,b)=>b[1]-a[1])
         .map(([k,v])=>v.toLocaleString("en")+" from "+k).join(", ") : "from OpenStreetMap tags")
-     .replace("__NBLD__", H.nbld ? H.nbld.toLocaleString("en") : "")
-     .replace("__NKNOWN__", H.nknown != null ? H.nknown.toLocaleString("en") : "")
-     .replace("__NNASO__", H.nnaso != null ? H.nnaso.toLocaleString("en") : "")
-     .replace("__NCHOPEN__", H.ch ? String(H.ch.length) : "")
-     .replace("__NCHURCH__", H.nchurch != null ? String(H.nchurch) : "")
-     .replace("__NIMP__", (H.nbld && H.nknown != null)
+     .replaceAll("__NBLD__", H.nbld ? H.nbld.toLocaleString("en") : "")
+     .replaceAll("__NKNOWN__", H.nknown != null ? H.nknown.toLocaleString("en") : "")
+     .replaceAll("__NNASO__", H.nnaso != null ? H.nnaso.toLocaleString("en") : "")
+     .replaceAll("__NCHOPEN__", H.ch ? String(H.ch.length) : "")
+     .replaceAll("__NCHURCH__", H.nchurch != null ? String(H.nchurch) : "")
+     .replaceAll("__NIMP__", (H.nbld && H.nknown != null)
         ? (H.nbld - H.nknown - (H.ncad || 0)).toLocaleString("en") : "")
      // counted off the payload rather than typed in: the street total read
      // "2,088" for several rebuilds after it was really 2,067
-     .replace("__NADDR__", H.addr ? H.addr.r.length.toLocaleString("en") : "")
-     .replace("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "")
-     .replace("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "");
+     .replaceAll("__NADDR__", H.addr ? H.addr.r.length.toLocaleString("en") : "")
+     .replaceAll("__NPLACE__", H.pl ? H.pl.length.toLocaleString("en") : "")
+     .replaceAll("__NNAME__", H.names ? H.names.length.toLocaleString("en") : "");
   else renderList();
   // no readable church hours in this build's data: say nothing rather than "0 of 95"
   if(tab==="how" && !(H.ch && H.ch.length)){ const li=$("#sheetBody [data-ch]"); if(li) li.remove(); }
@@ -1740,6 +1741,7 @@ function openSheet(tab){
   if(tab==="how"){
     const drop = sel => { const li=$("#sheetBody "+sel); if(li) li.remove(); };
     drop(H.chm ? "[data-mapped-trees]" : "[data-chm]");
+    if(!H.chm) drop("[data-chmattr]");
     if(!(H.place && H.place.leaf)) drop("[data-leaf]");
   }
   $("#sheetBody").scrollTop=0;

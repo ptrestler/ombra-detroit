@@ -38,7 +38,7 @@ top-level page rather than an embedded frame it can use your location.
 ## Just give me the file
 
 **[Download the page](https://github.com/ptrestler/ombra-detroit/releases/download/build/ombra-detroit.html)**
-— one self-contained 8.4 MB file, no build needed. Open it in any browser. It
+— one self-contained 9 MB file, no build needed. Open it in any browser. It
 works offline, and unlike the hosted copy it can use your location.
 
 That link is a release asset, rebuilt and replaced by CI on every push to
@@ -53,12 +53,14 @@ above instead.
 
 Building footprints from OpenStreetMap, heights for 95 % of them from Esri
 Community Maps, USGS lidar, OSM tags and Microsoft's ML buildings (all via
-Overture Maps), the towers drawn from their mapped parts, real tree canopy,
+Overture Maps), the towers drawn from their mapped parts, tree canopy measured
+from satellite imagery (in leaf May to October),
 bare-earth terrain from USGS 3DEP, and NOAA solar geometry. Rays are cast from
 both sidewalks of every street at 768 sun positions; the number you see assumes
 you walk on the shadier side.
 
-Sanity check: at 2 pm on 15 August, Bagley Street in Corktown is 0 % shaded and
+Sanity check: at 2 pm on 15 August, Bagley Street through Corktown and
+Mexicantown is 10 % shaded — by its trees, not its two-storey buildings — and
 Griswold Street in the Financial District is 89 % shaded at 10 am. That is the
 right answer for both.
 
@@ -71,4 +73,5 @@ Map data © OpenStreetMap contributors, ODbL, via the Overture Maps Foundation.
 Building heights from Esri Community Maps (CC BY 4.0), USGS 3DEP lidar and
 Microsoft ML Buildings (ODbL), as distributed by Overture. Places © Overture
 Maps Foundation. Elevation data courtesy of the USGS 3D Elevation Program via
-AWS Open Data.
+AWS Open Data. Tree canopy heights © Meta and World Resources Institute
+(CC BY 4.0), from their global 1 m canopy height map.
