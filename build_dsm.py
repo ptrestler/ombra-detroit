@@ -95,5 +95,6 @@ json.dump({"x0":float(x0),"y0":float(y0),"x1":float(x1),"y1":float(y1),"NX":NX,"
            "ntree":ntree,"nrow":nrow,"nwood":nwood,"nparts":len(parts),
            # where the known heights came from (Overture records it; raw OSM is all tags)
            "hsrc":dict(__import__("collections").Counter(
-               b["tags"].get("height:source") or "OpenStreetMap" for b in known))},open(build("grid.json"),"w"))
+               "OSM floor counts" if b["src"] == "levels" else (b["tags"].get("height:source") or "OpenStreetMap")
+               for b in known))},open(build("grid.json"),"w"))
 print("dsm max",dsm.max()/10,"coverage",round(float((dsm>0).mean()),3))
