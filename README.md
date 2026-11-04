@@ -38,7 +38,7 @@ top-level page rather than an embedded frame it can use your location.
 ## Just give me the file
 
 **[Download the page](https://github.com/ptrestler/ombra-detroit/releases/download/build/ombra-detroit.html)**
-— one self-contained 4.6 MB file, no build needed. Open it in any browser. It
+— one self-contained 6.6 MB file, no build needed. Open it in any browser. It
 works offline, and unlike the hosted copy it can use your location.
 
 That link is a release asset, rebuilt and replaced by CI on every push to
