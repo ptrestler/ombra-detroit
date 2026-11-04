@@ -1552,7 +1552,7 @@ function renderList(){
 const HOWTO = `
 <div class="prose">
 <h3>What you're looking at</h3>
-<p>Every street in downtown Detroit, Midtown, Corktown, Mexicantown and along the riverfront, coloured
+<p>Every street in downtown Detroit, Midtown, New Center, Corktown, Mexicantown and along the riverfront, coloured
 by how much of it is in shade at the moment you've scrubbed to — <b>red is open sun,
 blue is full shade</b>, and the purple between them is a street that is about half and half.
 It is ray-traced, not guessed: real building footprints, real terrain, real sun angles.
@@ -1586,7 +1586,7 @@ map, so you can type "Campus Martius", "Eastern Market" or "Woodward Avenue" rat
 hunting for a pixel. It also knows <b>__NADDR__ street addresses</b> from OpenStreetMap, so
 "1001 Woodward" lands on the building. A number nobody has mapped is placed between the
 mapped numbers either side of it on the same side of the street, and marked as an estimate:
-checked against the mapped ones, that is about <b>11&nbsp;m</b> off typically, 39&nbsp;m at worst
+checked against the mapped ones, that is about <b>10&nbsp;m</b> off typically, 36&nbsp;m at worst
 in nine cases of ten. An address that is not on this map simply isn't offered. <b>Pick on the map</b> is there for a doorway with no name — it tells
 you which street it landed on. <b>Use my location</b> reads your GPS, but only where the
 browser will hand it over: the copy of this page hosted on claude.ai runs inside a sandboxed
@@ -1659,7 +1659,7 @@ crow walks.</li>
 buildings carry a height from a survey, lidar or a tag; only __NIMP__, mostly sheds and
 garages, are estimated here, at about <b>4&nbsp;m</b> of error. Put that error back through
 the model and 99.7% of the map does not move at all. That test does not cover the
-heights that are themselves estimates upstream: the several hundred from Microsoft's ML model
+heights that are themselves estimates upstream: the thousand-odd from Microsoft's ML model
 can be badly wrong \u2014 it reads One Campus Martius, a mid-rise office tower, as
 26&nbsp;m \u2014 and a street beside one of those can be wrong with it. Ray blocking is a
 threshold, so a few metres either changes nothing or changes everything.</li>

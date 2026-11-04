@@ -1,11 +1,11 @@
 # Ombra Detroit
 
-A street-by-street shade map of downtown Detroit, Midtown, Corktown, Mexicantown
-and the riverfront, plus shade-aware walking routes. A port of Ombra Roma
+A street-by-street shade map of downtown Detroit, Midtown, New Center, Corktown,
+Mexicantown and the riverfront, plus shade-aware walking routes. A port of Ombra Roma
 (`ptrestler/ombra`), which it started as a copy of, history and all; that repo
 is separate and nothing here should touch it.
 
-Output is a **single self-contained HTML file** (~6.6 MB) with all data embedded:
+Output is a **single self-contained HTML file** (~8.4 MB) with all data embedded:
 no server, no network, works offline.
 
 ## Commands
@@ -22,7 +22,7 @@ make clean      # drop derived files, keep downloads
 ```
 
 `make` rebuilds `dist/ombra-detroit.html`. The expensive stage is `shade.py`
-(~16 min on the wider map). Everything `make fetch` downloads is committed under `data/`.
+(~15–25 min on the wider map). Everything `make fetch` downloads is committed under `data/`.
 
 ## The city is `city.py`
 
@@ -38,8 +38,8 @@ map labels in `places.py` (resolved against the data at build time; unmatched
 names are printed and dropped), and the named-street fixtures in the tests.
 
 **The map is the box clipped to the city.** `city.S, W, N, E` is a rectangle
-(42.312–42.362 N, 83.106–83.030 W: west to Clark Park, south to the river at
-the Ambassador Bridge), and a rectangle that reaches the river here also takes
+(42.312–42.376 N, 83.106–83.030 W: west to Clark Park, south to the river at
+the Ambassador Bridge, north past New Center), and a rectangle that reaches the river here also takes
 in downtown Windsor on the far bank. That added 4,600 nodes of network no walk
 can reach and dropped the connected share from 97.5 % to 89.3 %. So
 `fetch_overture.py` reads Overture's locality area for `city.CITY` in
@@ -82,7 +82,7 @@ so scripts run from any directory.
 | `terrain.py` | elevation tiles → 10 m grid, map bbox + 2 km margin | `build/terr.npy` |
 | `ground.py` | terrain smoothing (scored where the city has relief references), and the bare-earth check | `build/ground.npy` |
 | `build_dsm.py` | 2 m raster of building + canopy height above ground | `build/dsm.npy` |
-| `shade.py` | **the model.** 768 sun positions × ~42 k segments | `build/frames.npy` |
+| `shade.py` | **the model.** 768 sun positions × ~54 k segments | `build/frames.npy` |
 | `graph.py` | walking graph from segment geometry, junction-split | `build/graph.npz` |
 | `places.py` | searchable destinations, shortlist, map labels | `build/places_pack.json` |
 | `pack.py` | everything → one gzipped binary blob, base64 | `build/data.b64` |
@@ -141,7 +141,7 @@ there are a partial fetch, kept because they are correct.
 dropping them severed the walking network across ~300 squares (dead ends 17.9 %
 → 7.0 %, median detour 1.31 → 1.22 once included). Overture keeps them as
 `land_use` areas of subtype `pedestrian`, not as streets, so `fetch_overture.py`
-turns each one's outline into a `highway=pedestrian, area=yes` way (111 of them
+turns each one's outline into a `highway=pedestrian, area=yes` way (116 of them
 here) — plazas are modelled as their **perimeter**, so routes walk round a
 square, not across it.
 
@@ -149,7 +149,7 @@ square, not across it.
 Detroit–Windsor Tunnel is a `primary` road under the river to Canada, and it
 drew a red line into the water and gave the router a way across it. Overture
 says `denied` for `foot` along its whole length; `fetch_overture.py` drops
-every segment that does — 67 in this box, the tunnel's 4 among them, the rest
+every segment that does — 90 in this box, the tunnel's 4 among them, the rest
 mostly freeway service drives.
 
 **Towers are in `building:part`s, not in their outlines.** Downtown, the outline
@@ -211,18 +211,17 @@ in Rome, scrambling the estimated heights moved 5.9 % of the map by more than
 10 pp and the fixtures by at most 2 pp.
 
 **Heights: 95 % are carried, and the 5 % that are estimated are not like the
-rest — `make heights` is how you find out.** Of 10,624 buildings in the box,
-10,063 carry a height from Overture (Esri Community Maps 7,060, USGS lidar
-1,580, Microsoft ML 805, OSM tags 618) and 25 a floor count only. The 536 left
-are small — median footprint 24 m² against 130 m² for the tagged: garages and
-sheds, most of them in Southwest Detroit — so scoring an estimate on *all*
-tagged buildings measures towers guessed from their neighbours (7.31 m RMSE),
-which is not the job. On the 1,649 tagged buildings with footprints like theirs
-(≤ 72 m²): IDW as shipped (k = 15, ≤ 500 m, clip 3–34 m) 4.40 m, bias +1.08;
-Rome's 7 m floor 4.68, bias +2.04, because it lifted every garage (better by
-0.28 m, bootstrap [−0.34, −0.24]); unclipped 4.56; per-type defaults 6.89; a
-flat 5 m 4.46 but 9.70 on all tagged. So `heights.INTERP_MIN_M` is 3 and
-`INTERP_RMSE_M` 4.40. Every number here comes out of `measure_heights.py`,
+rest — `make heights` is how you find out.** Of 15,228 buildings in the box,
+14,544 carry a height from Overture (Esri Community Maps 10,176, USGS lidar
+2,385, Microsoft ML 1,169, OSM tags 814) and 33 a floor count only. The 651 left
+are small — median footprint 25 m² against 132 m² for the tagged: garages and
+sheds — so scoring an estimate on *all* tagged buildings measures towers
+guessed from their neighbours (6.39 m RMSE), which is not the job. On the 2,581
+tagged buildings with footprints like theirs (≤ 74 m²): IDW as shipped (k = 15,
+≤ 500 m, clip 3–34 m) 4.42 m, bias +0.95; Rome's 7 m floor 4.64, bias +1.70,
+because it lifts every garage (better by 0.23 m, bootstrap [−0.26, −0.19]);
+unclipped 4.52; per-type defaults 7.06; a flat 5 m 4.64. So
+`heights.INTERP_MIN_M` is 3 and `INTERP_RMSE_M` 4.42. Every number here comes out of `measure_heights.py`,
 which calls `heights.estimate_untagged` — the function the build runs. Never
 move one by eye; the floor moved because the map did, and the measurement said
 so.
@@ -315,17 +314,17 @@ in `UIHIT`, so a tap on it is not also a map tap.
 address theme has 100,000 rows for Windsor and the Oakland County suburbs and
 none in the City of Detroit, so `fetch_osm.py --addresses` (one Overpass query,
 centres and tags only; `make fetch` runs it after either fetcher) writes
-`data/osm/extra_addr.json`, and `addresses.py` reads it into 3,075 addresses on
-313 streets, 2,846 of them inside the city. OSM writes one building's numbers many ways ("2462-2472",
+`data/osm/extra_addr.json`, and `addresses.py` reads it into 3,989 addresses on
+371 streets, 3,766 of them inside the city. OSM writes one building's numbers many ways ("2462-2472",
 "439;441", "3627-B"); all of them become a range. In the page, `searchAddr`
 answers "1001 woodward ave" or "1001 e jeff" (abbreviations spelled out, each
 typed word the start of a word of the name): a mapped number lands where it was
 mapped; an unmapped one is interpolated between the nearest mapped numbers of
 the same parity on the same street, at most `addresses.MAX_GAP` (200) apart, and
 is offered as an **estimated address**. `measure_addresses.py` scores that
-leave-one-out: a median 11 m off, p90 39 m, against p90 68 m with no limit. A
+leave-one-out: a median 10 m off, p90 36 m, against p90 66 m with no limit. A
 number with no neighbours in reach is not offered. The table rides in the header
-(`head.addr`), ~60 kB of page. A bare street as an end still lands at the
+(`head.addr`), ~80 kB of page. A bare street as an end still lands at the
 average of its points, which is why Woodward is not in the shortlist.
 
 **The "leaves the route most of the screen" checks run close to the line in a
@@ -381,11 +380,11 @@ what to tell anyone stuck on it.
 **Today is answered with the closest sun, not the nearest date.** The model
 samples the 1st and 15th; `measure_dates.py` scores ways of standing in for the
 8th and 23rd of every month against their real shade. For Detroit: the nearest
-sampled date at the same clock time is off by **2.89 pp** mean (3.67 % of
-street-frames by more than 20), and **8.80 pp** for the dates whose brackets
+sampled date at the same clock time is off by **2.90 pp** mean (3.67 % of
+street-frames by more than 20), and **8.83 pp** for the dates whose brackets
 straddle a clock change (early March, late October); the frame from *any* date
-whose sun is closest in the sky, **1.36 pp** (1.68 %), 1.71 across the changes;
-blending the two closest suns, 1.40. (Rome: 3.03, 12.9, 1.63, 1.67.) Shade
+whose sun is closest in the sky, **1.38 pp** (1.69 %), 1.72 across the changes;
+blending the two closest suns, 1.41. (Rome: 3.03, 12.9, 1.63, 1.67.) Shade
 depends on the sun's direction and nothing else in this model. `solarPos` in the
 template is `solar.py` line for line, and the smoke test holds it to the build's
 own sun on all 768 frames (0.005° worst) and to `city.tz_for` on every one.
@@ -407,7 +406,7 @@ saved hotel would quietly move — and matched back within 25 m.
 **Churches are shown only where their hours can be read, and this build has
 none.** Overture carries no `opening_hours`, so none of the city's places of
 worship ship, the legend row stays hidden, and the methodology panel drops the
-line rather than saying "0 of 167". The feature is intact for a raw-OSM build:
+line rather than saying "0 of 200". The feature is intact for a raw-OSM build:
 `hours.py` parses a deliberate subset at build time and *refuses* the rest (Rome:
 59 of 63 tagged churches shipped). The smoke test still exercises the page's
 church logic — open or closed by day and hour, the stop that will be shut when
@@ -530,21 +529,21 @@ The header also carries `proj`, `place` (name, clock), `labels` (map labels in
 local metres), `netkm`, `bigpct`, `ntree`, `nrow`, `relief`, `hsrc` (where the
 known heights came from) and `source`, so the methodology panel counts rather
 than quotes. The boot and size figures above are Rome's; Detroit's file is
-6.6 MB and `measure_boot.mjs` has not been re-run for it.
+8.4 MB and `measure_boot.mjs` has not been re-run for it.
 
 ## Accuracy, measured
 
 | | |
 |---|---|
 | Bare earth under the towers | ground under the 25 tallest tagged buildings reads −0.04 m against 50–100 m round them |
-| Buildings in the box | 10,624 (by centroid); 10,063 carry a height, 25 a floor count, 536 estimated |
-| Height sources | Esri Community Maps 7,060, USGS lidar 1,580, Microsoft ML 805, OSM tags 618 |
-| Error of the estimate | IDW RMSE 4.40 m, bias +1.08 — leave-one-out on the 1,649 tagged buildings the size of the untagged |
-| Shade's sensitivity to that error | 99.70 % of segment-frames unmoved, city mean +0.02 pp; the 0.30 % that move, move by a median 20 pp. ML heights are not in this test |
-| Walking network | 61,565 links, ~1,330 km, 97.9 % one connected component, dead ends 5.9 % |
-| Addresses | 2,846 in the city; an estimated number is a median 11 m off, p90 39 m |
+| Buildings in the box | 15,228 (by centroid); 14,544 carry a height, 33 a floor count, 651 estimated |
+| Height sources | Esri Community Maps 10,176, USGS lidar 2,385, Microsoft ML 1,169, OSM tags 814 |
+| Error of the estimate | IDW RMSE 4.42 m, bias +0.95 — leave-one-out on the 2,581 tagged buildings the size of the untagged |
+| Shade's sensitivity to that error | 99.70 % of segment-frames unmoved, city mean +0.00 pp; the 0.30 % that move, move by a median 20 pp (run at σ = 4.40). ML heights are not in this test |
+| Walking network | 78,095 links, ~1,722 km, 98.4 % one connected component, dead ends 5.4 % |
+| Addresses | 3,766 in the city; an estimated number is a median 10 m off, p90 36 m |
 | Sunrise/sunset vs published | to the minute at both solstices, 1 min on 20 March |
-| Today from the closest sun | 1.36 pp mean error (nearest date: 2.89) |
+| Today from the closest sun | 1.38 pp mean error (nearest date: 2.90) |
 
 **Height error does not average out, it concentrates** — in Rome, perturbing the
 estimated heights left 94.5 % of values bit-identical and moved the 5.5 % that
@@ -556,7 +555,7 @@ grid. Call the scripts, not `make`, which would see nothing to rebuild.
 
 Not modelled: awnings, scaffolding, the People Mover's elevated track, parked
 trucks, cloud, humidity, or the heat off asphalt and parking lots. Tree canopy
-comes from 4,264 mapped trees and is patchy.
+comes from 4,814 mapped trees and is patchy.
 
 ## Possible next steps
 
@@ -564,14 +563,16 @@ comes from 4,264 mapped trees and is patchy.
   `SOURCE = "osm"`): church hours, street widths, wikidata for place ranking, and
   OSM height tags to score the Overture height sources against each other. Or
   keep Overture's heights and take only the tags from OSM.
-- **The ML heights.** 805 buildings carry Microsoft's estimate as if it were a
+- **The ML heights.** 1,169 buildings carry Microsoft's estimate as if it were a
   measurement. Scoring them needs a second height for the same buildings: OSM
   tags, or USGS 3DEP lidar point clouds directly.
 - **Re-measure what is still Rome's:** `measure_boot.mjs`, `measure_days.mjs`.
   (`measure_via.mjs` measures the water stop, which Detroit does not ship.)
-- **Wider coverage.** New Center and the east riverfront to Belle Isle are just
-  outside the box. Widening it to Mexicantown took the file from 4.6 to 6.6 MB
-  and the shade run from 7.5 to 16 min; the artifact cap is 16 MB.
+- **Wider coverage.** The east riverfront to Belle Isle is just outside the box.
+  Widening to Mexicantown and New Center took the file from 4.6 to 8.4 MB; the
+  artifact cap is 16 MB. **Segment indices are uint16** (`eSeg` in `graph.py`,
+  `pack.py` and the page): the box has 54,111 segments, 83 % of 65,535, so the
+  next widening has to move them to u4 first. `graph.py` asserts it.
 
 ## Conventions
 

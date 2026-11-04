@@ -99,6 +99,8 @@ SHORTLIST = [
  ("Charles H. Wright Museum", "The Wright Museum"),
  ("Mexicantown", "Mexicantown"), ("Clark Park", "Clark Park"),
  ("Bagley Pedestrian Plaza", "Bagley Pedestrian Plaza"),
+ ("New Center", "New Center"), ("Fisher Building", "Fisher Building"),
+ ("Motown Museum", "Motown Museum"), ("New Center Park", "New Center Park"),
 ]
 top, missing = [], []
 for label, key in SHORTLIST:
@@ -125,6 +127,8 @@ LABELS = [
  ("Dequindre Cut", "Dequindre Cut", 3), ("Hudson's", "Hudson's Detroit", 2),
  ("Mexicantown", "Mexicantown", 1), ("Hubbard Farms", "Hubbard Farms", 2),
  ("Clark Park", "Clark Park", 2),
+ ("New Center", "New Center", 1), ("Fisher Building", "Fisher Building", 2),
+ ("Motown Museum", "Motown Museum", 2), ("Cadillac Place", "Cadillac Place", 3),
 ]
 from geo import to_xy
 SEGS = json.load(open(build("segments.json")))
