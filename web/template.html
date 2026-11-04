@@ -1659,9 +1659,11 @@ crow walks.</li>
 buildings carry a height from a survey, lidar or a tag; only __NIMP__, mostly sheds and
 garages, are estimated here, at about <b>4&nbsp;m</b> of error. Put that error back through
 the model and 99.7% of the map does not move at all. That test does not cover the
-heights that are themselves estimates upstream: the thousand-odd from Microsoft's ML model
-can be badly wrong \u2014 it reads One Campus Martius, a mid-rise office tower, as
-26&nbsp;m \u2014 and a street beside one of those can be wrong with it. Ray blocking is a
+heights that are themselves estimates upstream: Microsoft's ML model reads low wherever a
+floor count can check it \u2014 it had the 33-floor Millender Center at 21&nbsp;m \u2014 so where
+OpenStreetMap has a floor count, the floors are used instead. The thousand-odd ML heights
+left are mostly garages and houses with nothing to check them against, and a street beside
+a wrong one can be wrong with it. Ray blocking is a
 threshold, so a few metres either changes nothing or changes everything.</li>
 </ul>
 
