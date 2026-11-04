@@ -5,7 +5,7 @@ PY := python3
 # the map data the build reads (data/overture/ or data/osm/, per city.SOURCE):
 # a refetch has to rebuild everything downstream of it
 DATAD := $(shell $(PY) -c "import paths; print(paths.OSMD)")
-MAPDATA := $(wildcard $(DATAD)/tiles/*.json $(DATAD)/extra_*.json)
+MAPDATA := $(wildcard $(DATAD)/tiles/*.json $(DATAD)/extra_*.json data/canopy/chm2m.png)
 
 .PHONY: all fetch rasters shade web artifact test heights clean distclean
 
@@ -16,6 +16,7 @@ all: web
 fetch:
 	$(PY) -c "import city, runpy; runpy.run_path('fetch_' + city.SOURCE + '.py', run_name='__main__')"
 	$(PY) fetch_osm.py --addresses
+	$(PY) fetch_canopy.py
 	$(PY) terrain.py
 
 ## rasters -- 2 m building/canopy grid, 10 m terrain grid

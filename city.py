@@ -46,6 +46,17 @@ def tz_for(y, mo, day):
     start, end = dst_window(y)
     return TZ_DST if start <= (mo, day) < end else TZ_STD
 
+# --- leaves -------------------------------------------------------------------
+# Detroit's trees are deciduous: they leaf out in early May and are mostly bare
+# by early November. Inside this window the canopy casts shade; outside it the
+# model sees buildings only. Of the sampled dates, 1 May to 15 October are in
+# leaf. None would mean evergreen: canopy all year.
+LEAF_ON = ((5, 1), (11, 1))       # [from, until)
+
+def leaf_on(mo, day):
+    if LEAF_ON is None: return True
+    return LEAF_ON[0] <= (mo, day) < LEAF_ON[1]
+
 # Drinking fountains on the map and on walks ("Route via one"). Rome's nasoni
 # run all day on every other corner; Detroit's handful of mapped ones are not
 # something to plan a walk round, so the payload carries none and the page

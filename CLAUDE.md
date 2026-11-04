@@ -79,9 +79,10 @@ so scripts run from any directory.
 | stage | what it does | out |
 |---|---|---|
 | `fetch_overture.py` / `fetch_osm.py` | streets, buildings, building parts, water, greenery, trees, fountains, named places | `data/overture/` or `data/osm/` |
+| `fetch_canopy.py` | Meta/WRI 1 m canopy height map, resampled onto the 2 m grid | `data/canopy/chm2m.png` |
 | `terrain.py` | elevation tiles → 10 m grid, map bbox + 2 km margin | `build/terr.npy` |
 | `ground.py` | terrain smoothing (scored where the city has relief references), and the bare-earth check | `build/ground.npy` |
-| `build_dsm.py` | 2 m raster of building + canopy height above ground | `build/dsm.npy` |
+| `build_dsm.py` | 2 m raster of building + canopy height above ground, and the same without trees | `build/dsm.npy`, `dsm_bare.npy` |
 | `shade.py` | **the model.** 768 sun positions × ~54 k segments | `build/frames.npy` |
 | `graph.py` | walking graph from segment geometry, junction-split | `build/graph.npz` |
 | `places.py` | searchable destinations, shortlist, map labels | `build/places_pack.json` |
@@ -573,8 +574,8 @@ Ray blocking is a threshold. Re-derive rather than copy:
 grid. Call the scripts, not `make`, which would see nothing to rebuild.
 
 Not modelled: awnings, scaffolding, the People Mover's elevated track, parked
-trucks, cloud, humidity, or the heat off asphalt and parking lots. Tree canopy
-comes from 4,814 mapped trees and is patchy.
+trucks, cloud, humidity, or the heat off asphalt and parking lots. A tree crown
+is solid in leaf and absent out of it; nothing in between, and no conifers.
 
 ## Possible next steps
 

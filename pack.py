@@ -220,7 +220,7 @@ pl=[[p["n"], CATS.index(p["c"]),
 print("places packed:", len(pl), "cats", CATS)
 head=dict(sections=hdr, nbld=gj.get("nbld"), nknown=gj.get("nknown"),
           ncad=gj.get("ncadastre"), nnaso=len(nax), ch=CH, nchurch=NCHURCH,
-          nnode=NNODE, nedge=NEDGE, netkm=NETKM, bigpct=BIGPCT, ntree=gj.get("ntree"), nrow=gj.get("nrow"), hsrc=gj.get("hsrc"), source=city.SOURCE,
+          nnode=NNODE, nedge=NEDGE, netkm=NETKM, bigpct=BIGPCT, ntree=gj.get("ntree"), nrow=gj.get("nrow"), canpct=gj.get("canpct"), chm=gj.get("chm"), hsrc=gj.get("hsrc"), source=city.SOURCE,
           relief=json.load(open(build("ground_meta.json"))).get("relief_p5_p95_m"), ndate=NDATE, slots=SLOTS, city=CITY, pl=pl, cats=CATS, top=PP["top"], qs=QS, ox=OX, oy=OY, nseg=len(segs), nframe=T.shape[1],
           kinds=KINDS, names=names, frames=meta,
           bbox=dict(x0=float(bx0),y0=float(by0),x1=float(bx1),y1=float(by1)),
@@ -228,7 +228,8 @@ head=dict(sections=hdr, nbld=gj.get("nbld"), nknown=gj.get("nknown"),
                     mperlon=111320.0*math.cos(math.radians(city.LAT0))),
           # who the page is for, and its clock: the template reads both from here
           place=dict(name=city.NAME, city=city.CITY, tzname=city.TZ_NAME,
-                     std=city.TZ_STD, dst=city.TZ_DST, rule=city.DST_RULE),
+                     std=city.TZ_STD, dst=city.TZ_DST, rule=city.DST_RULE,
+                     leaf=[m*100+d for m, d in city.LEAF_ON] if city.LEAF_ON else None),
           labels=PP.get("labels", []),
           addr=dict(st=AST, r=AROWS, gap=__import__("addresses").MAX_GAP))
 hb=json.dumps(head,ensure_ascii=False,separators=(",",":")).encode()
